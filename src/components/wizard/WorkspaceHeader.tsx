@@ -16,9 +16,6 @@ import type { BrdDocument, ReviewStage } from '../../types/brd';
 interface WorkspaceHeaderProps {
   brd: BrdDocument;
   onTitleChange: (title: string) => void;
-  onGenerateBrd: () => void;
-  onGeneratePartial: () => void;
-  generating: boolean;
   /** Review pipeline. */
   reviewStage: ReviewStage;
   canSubmitReview: boolean;
@@ -29,9 +26,6 @@ interface WorkspaceHeaderProps {
 export function WorkspaceHeader({
   brd,
   onTitleChange,
-  onGenerateBrd,
-  onGeneratePartial,
-  generating,
   reviewStage,
   canSubmitReview,
   reviewBusy,
@@ -124,42 +118,6 @@ export function WorkspaceHeader({
             </Button>
           );
         })()}
-
-        {/* Generate BRD split button */}
-        <div className="flex items-center rounded-[6px] overflow-hidden border border-border divide-x divide-border">
-          <Button
-            size="sm"
-            variant="default"
-            className="rounded-none border-0"
-            onClick={onGenerateBrd}
-            disabled={generating}
-          >
-            {generating ? (
-              <>
-                <Spinner size="sm" />
-                Generating…
-              </>
-            ) : (
-              'Generate BRD'
-            )}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                variant="default"
-                className="rounded-none border-0 px-2"
-                disabled={generating}
-                aria-label="More export options"
-              >
-                <ChevronDown className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onGeneratePartial}>Export partial BRD</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
 
         {/* User menu */}
         <DropdownMenu>

@@ -25,7 +25,18 @@ function stripStructuredBlocks(text: string): string {
     const frag = text.slice(lt);
     if (STRUCTURED_TAGS.some((t) => t.startsWith(frag))) cut = Math.min(cut, lt);
   }
-  return text.slice(0, cut).trimEnd();
+  let result = text.slice(0, cut);
+  // The agent often wraps the structured block in a ```xml code fence.
+  // Always strip a dangling fence opener that carries a language hint
+  // (```xml / ```json …) — a CLOSING fence never has a language, so this is
+  // safe and also handles the fence streaming in before the tag arrives.
+  result = result.replace(/\n?`{3}[a-zA-Z]+[ \t]*\n?$/, '');
+  // When a structured block was actually cut, also drop a bare/partial fence
+  // left immediately before it (e.g. "```" or a half-streamed "``").
+  if (cut < text.length) {
+    result = result.replace(/\n?`{1,3}[a-zA-Z]*[ \t]*\n?$/, '');
+  }
+  return result.trimEnd();
 }
 
 export function MessageBubble({ message, onRetry }: MessageBubbleProps) {

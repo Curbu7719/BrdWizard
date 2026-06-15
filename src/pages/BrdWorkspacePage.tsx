@@ -538,9 +538,6 @@ export default function BrdWorkspacePage() {
       <WorkspaceHeader
         brd={brd}
         onTitleChange={handleTitleChange}
-        onGenerateBrd={() => doExport(false)}
-        onGeneratePartial={() => doExport(true)}
-        generating={generating}
         reviewStage={reviewStage}
         canSubmitReview={sections.length > 0 && sections.every(s => s.status === 'approved')}
         reviewBusy={reviewBusy}
