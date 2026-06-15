@@ -262,6 +262,87 @@ async function handlePatchSetting(req: Request, userId: string): Promise<Respons
 }
 
 // ---------------------------------------------------------------------------
+// PATCH /settings-admin/settings — update MANY app_settings rows atomically.
+// One request, validated together (incl. final threshold ordering), upserted in
+// a single call. Avoids the partial-save / transient-ordering issues of firing
+// one request per field from the client.
+// ---------------------------------------------------------------------------
+
+async function handlePatchSettingsBulk(req: Request, userId: string): Promise<Response> {
+  try { await requireAdmin(userId); } catch (r) { return r as Response; }
+
+  let body: { updates?: Array<{ key: string; value: unknown }> };
+  try { body = await req.json(); } catch {
+    return err('Invalid JSON body');
+  }
+
+  const updates = body?.updates;
+  if (!Array.isArray(updates) || updates.length === 0)
+    return err('updates must be a non-empty array of { key, value }');
+
+  // Validate each key + value individually.
+  for (const u of updates) {
+    if (!u || typeof u.key !== 'string' || u.value === undefined)
+      return err('each update needs a key and a value');
+    if (!PHASE1_KEYS.has(u.key))
+      return err(`Unknown or non-Phase-1 key: "${u.key}"`);
+    const ve = validateSettingValue(u.key, u.value);
+    if (ve) return err(ve);
+  }
+
+  const db = getServiceClient();
+
+  // Validate the FINAL threshold ordering once (current DB overlaid with all
+  // incoming changes) — atomic, so no transient out-of-order state can be rejected.
+  const touchesThreshold = updates.some((u) =>
+    u.key === 'context.threshold_warn_pct' ||
+    u.key === 'context.threshold_checkpoint_pct' ||
+    u.key === 'context.threshold_handoff_pct');
+
+  if (touchesThreshold) {
+    const { data: rows } = await db
+      .from('app_settings')
+      .select('key, value')
+      .in('key', [
+        'context.threshold_warn_pct',
+        'context.threshold_checkpoint_pct',
+        'context.threshold_handoff_pct',
+      ]);
+    const cur: Record<string, number> = {
+      'context.threshold_warn_pct': 70,
+      'context.threshold_checkpoint_pct': 85,
+      'context.threshold_handoff_pct': 90,
+    };
+    for (const r of rows ?? []) cur[r.key] = Number(r.value);
+    for (const u of updates) if (u.key in cur) cur[u.key] = u.value as number;
+    const oe = validateThresholdOrdering(
+      cur['context.threshold_warn_pct'],
+      cur['context.threshold_checkpoint_pct'],
+      cur['context.threshold_handoff_pct'],
+    );
+    if (oe) return err(oe);
+  }
+
+  const now = new Date().toISOString();
+  const { error: upErr } = await db.from('app_settings').upsert(
+    updates.map((u) => ({
+      key: u.key,
+      value: u.value as never,
+      updated_at: now,
+      updated_by: userId,
+    })),
+    { onConflict: 'key' },
+  );
+
+  if (upErr) {
+    console.error('[settings-admin] bulk PATCH error:', upErr);
+    return err('Failed to update settings', 500);
+  }
+
+  return json({ success: true, count: updates.length });
+}
+
+// ---------------------------------------------------------------------------
 // POST /settings-admin/prompt — create a new (inactive) prompt draft
 // ---------------------------------------------------------------------------
 
@@ -460,9 +541,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return handleGet(userId);
   }
 
-  // PATCH /settings-admin/setting
+  // PATCH /settings-admin/setting (single)
   if (req.method === 'PATCH' && path === 'setting') {
     return handlePatchSetting(req, userId);
+  }
+
+  // PATCH /settings-admin/settings (bulk, atomic)
+  if (req.method === 'PATCH' && path === 'settings') {
+    return handlePatchSettingsBulk(req, userId);
   }
 
   // POST /settings-admin/prompt

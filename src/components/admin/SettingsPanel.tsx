@@ -18,8 +18,9 @@ interface ContextSettings {
   'context.max_turns_per_section': number;
 }
 
+// The settings-admin GET returns `settings` as an ARRAY of { key, value } rows.
 type ContextSettingsResponse = {
-  settings: Record<string, unknown>;
+  settings: Array<{ key: string; value: unknown }>;
 };
 
 // ---------------------------------------------------------------------------
@@ -145,11 +146,15 @@ export function SettingsPanel() {
 
     if (!data?.settings) return;
 
+    // GET returns an array of { key, value }; index it by key.
+    const byKey: Record<string, unknown> = {};
+    for (const row of data.settings) byKey[row.key] = row.value;
+
     const next: Record<string, string> = { ...values };
     const nextServer: Record<string, number> = {};
 
     for (const field of FIELDS) {
-      const raw = data.settings[field.key];
+      const raw = byKey[field.key];
       if (raw !== undefined && raw !== null) {
         const num = Number(raw);
         next[field.key] = String(num);
@@ -237,7 +242,7 @@ export function SettingsPanel() {
 
     setSaving(true);
 
-    // Send only changed keys
+    // Send only changed keys — in ONE atomic request (no partial saves).
     const changed: Array<{ key: string; value: number }> = [];
     for (const field of FIELDS) {
       if (numeric[field.key] !== serverValues[field.key]) {
@@ -245,22 +250,16 @@ export function SettingsPanel() {
       }
     }
 
-    let lastError: string | null = null;
-    for (const { key, value } of changed) {
-      const { error } = await callEdgeFunctionPatch<unknown>('settings-admin/setting', { key, value });
-      if (error) {
-        lastError = error;
-        // Show per-key error inline
-        setFieldErrors(prev => ({ ...prev, [key]: error }));
-      }
-    }
+    const { error } = await callEdgeFunctionPatch<unknown>('settings-admin/settings', {
+      updates: changed,
+    });
 
     setSaving(false);
 
-    if (lastError) {
+    if (error) {
       toast({
         title: 'Save failed',
-        description: 'One or more settings could not be saved. See field errors.',
+        description: error,
         variant: 'destructive',
       });
     } else {

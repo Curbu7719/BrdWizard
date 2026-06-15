@@ -164,8 +164,8 @@ export function PromptEditor() {
     setConfirmDialog(prev => ({ ...prev, open: false }));
     setSaving(true);
 
-    // Step 1: POST to create a draft
-    const { data: created, error: createErr } = await callEdgeFunction<{ id: string }>(
+    // Step 1: POST to create a draft. Backend responds with { prompt: { id, ... } }.
+    const { data: created, error: createErr } = await callEdgeFunction<{ prompt: { id: string } }>(
       'settings-admin/prompt',
       {
         prompt_key: selectedKey,
@@ -174,7 +174,8 @@ export function PromptEditor() {
       }
     );
 
-    if (createErr || !created?.id) {
+    const newId = created?.prompt?.id;
+    if (createErr || !newId) {
       setSaving(false);
       toast({
         title: 'Failed to save prompt',
@@ -186,7 +187,7 @@ export function PromptEditor() {
 
     // Step 2: PATCH to activate
     const { error: activateErr } = await callEdgeFunctionPatch<unknown>(
-      `settings-admin/prompt/${created.id}/activate`,
+      `settings-admin/prompt/${newId}/activate`,
       {}
     );
 
