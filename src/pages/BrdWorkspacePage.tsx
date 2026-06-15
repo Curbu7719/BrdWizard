@@ -384,6 +384,16 @@ export default function BrdWorkspacePage() {
 
   // ── Other handlers ──────────────────────────────────────────────────────────
 
+  async function handleSaveBrdField(field: 'expected_value' | 'notes', value: string) {
+    if (!brd) return;
+    const { error } = await supabase
+      .from('brd_documents')
+      .update({ [field]: value, updated_at: new Date().toISOString() })
+      .eq('id', brd.id);
+    if (error) toast({ title: 'Failed to save', variant: 'destructive' });
+    else void refetchBrd();
+  }
+
   async function handleTitleChange(newTitle: string) {
     if (!brd) return;
     const { error } = await updateBrd(brd.id, { title: newTitle });
@@ -567,6 +577,10 @@ export default function BrdWorkspacePage() {
             loading={sectionsLoading}
             onRevise={handleRevise}
             onInlineSaveSection={handleInlineSaveSection}
+            onEditStory={handleEditStory}
+            expectedValue={brd.expected_value ?? ''}
+            notes={brd.notes ?? ''}
+            onSaveField={handleSaveBrdField}
             onGenerateBrd={() => doExport(false)}
             generating={generating}
           />

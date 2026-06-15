@@ -5,9 +5,11 @@ import type { Epic, UserStory } from '../../types/brd';
 interface EpicBlockProps {
   epic: Epic;
   stories: UserStory[];
+  /** When provided, each story can be edited in place. */
+  onEditStory?: (storyId: string, text: string) => void | Promise<void>;
 }
 
-export function EpicBlock({ epic, stories }: EpicBlockProps) {
+export function EpicBlock({ epic, stories, onEditStory }: EpicBlockProps) {
   const allApproved = stories.length > 0 && stories.every(s => s.is_approved);
 
   return (
@@ -28,7 +30,7 @@ export function EpicBlock({ epic, stories }: EpicBlockProps) {
       ) : (
         <ul className="space-y-0.5">
           {stories.map(story => (
-            <StoryItem key={story.id} story={story} />
+            <StoryItem key={story.id} story={story} onEdit={onEditStory} />
           ))}
         </ul>
       )}

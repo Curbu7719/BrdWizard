@@ -16,6 +16,8 @@ interface SectionAccordionProps {
   onRevise?: (sectionKey: string) => void;
   /** Called when the user saves an inline edit (background/objective only). */
   onInlineSave?: (sectionKey: string, content: string) => Promise<void>;
+  /** Called when the user edits a user story in place (epics section). */
+  onEditStory?: (storyId: string, text: string) => void | Promise<void>;
 }
 
 function SectionStatusIcon({ status }: { status: SectionStatus }) {
@@ -24,7 +26,7 @@ function SectionStatusIcon({ status }: { status: SectionStatus }) {
   return <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/40 inline-block" aria-label="Pending" />;
 }
 
-export function SectionAccordion({ section, epics = [], stories = [], onRevise, onInlineSave }: SectionAccordionProps) {
+export function SectionAccordion({ section, epics = [], stories = [], onRevise, onInlineSave, onEditStory }: SectionAccordionProps) {
   const [open, setOpen] = useState(section.status === 'approved' || section.status === 'in_progress');
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(section.content_full ?? '');
@@ -135,6 +137,7 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
                     key={epic.id}
                     epic={epic}
                     stories={stories.filter(s => s.epic_id === epic.id)}
+                    onEditStory={onEditStory}
                   />
                 ))
               )}

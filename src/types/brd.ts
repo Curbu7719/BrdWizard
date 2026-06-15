@@ -44,6 +44,10 @@ export interface BrdDocument {
   active_section: string | null;
   context_token_pct: number;
   handoff_package: HandoffPackage | null;
+  /** User-authored: expected business value / outcome. */
+  expected_value: string | null;
+  /** User-authored: free-form notes. */
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }

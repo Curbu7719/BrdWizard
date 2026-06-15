@@ -1,4 +1,5 @@
 import { SectionAccordion } from './SectionAccordion';
+import { BrdInputCard } from './BrdInputCard';
 import { Button } from '../ui/button';
 import { Spinner } from '../shared/Spinner';
 import type { BrdSection, Epic, UserStory } from '../../types/brd';
@@ -11,6 +12,14 @@ interface ApprovedPanelProps {
   onRevise: (sectionKey: string) => void;
   /** For background/objective sections: save edited content directly to DB. */
   onInlineSaveSection: (sectionKey: string, content: string) => Promise<void>;
+  /** Edit an approved user story in place. */
+  onEditStory: (storyId: string, text: string) => void | Promise<void>;
+  /** User-authored expected business value. */
+  expectedValue: string;
+  /** User-authored free-form notes. */
+  notes: string;
+  /** Persist a user-authored field (expected_value | notes). */
+  onSaveField: (field: 'expected_value' | 'notes', value: string) => void | Promise<void>;
   onGenerateBrd: () => void;
   generating: boolean;
 }
@@ -22,6 +31,10 @@ export function ApprovedPanel({
   loading,
   onRevise,
   onInlineSaveSection,
+  onEditStory,
+  expectedValue,
+  notes,
+  onSaveField,
   onGenerateBrd,
   generating,
 }: ApprovedPanelProps) {
@@ -57,8 +70,30 @@ export function ApprovedPanel({
             stories={stories}
             onRevise={onRevise}
             onInlineSave={onInlineSaveSection}
+            onEditStory={onEditStory}
           />
         ))}
+
+        {/* User-authored inputs */}
+        {!loading && (
+          <div className="space-y-3 pt-2">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Your Inputs
+            </h2>
+            <BrdInputCard
+              label="Expected Value"
+              placeholder="What business value or outcome do you expect from this BRD?"
+              value={expectedValue}
+              onSave={text => onSaveField('expected_value', text)}
+            />
+            <BrdInputCard
+              label="Notes"
+              placeholder="Any notes you want to attach to this BRD…"
+              value={notes}
+              onSave={text => onSaveField('notes', text)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Footer — Generate BRD */}

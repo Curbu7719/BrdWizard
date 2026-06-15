@@ -24,22 +24,22 @@ import type { BrdSection, BrdDocument, HandoffPackage } from './context-builder.
  * All values are loaded from app_settings (or fall back to these defaults).
  */
 export interface ThresholdSettings {
-  /** Model context window in tokens (default 200_000). */
+  /** Model context window in tokens — used only to compute the display %. */
   contextWindowTokens: number;
-  /** Percentage at which to warn the user (default 70). */
-  warnPct: number;
-  /** Percentage at which to auto-checkpoint the section (default 85). */
-  checkpointPct: number;
-  /** Percentage at which to generate a handoff package (default 90). */
-  handoffPct: number;
+  /** Absolute INPUT-token count at which to warn the user (default 300_000). */
+  warnTokens: number;
+  /** Absolute INPUT-token count at which to auto-checkpoint (default 500_000). */
+  checkpointTokens: number;
+  /** Absolute INPUT-token count at which to generate a handoff (default 800_000). */
+  handoffTokens: number;
 }
 
-/** Default thresholds matching historical hardcoded values. */
+/** Default thresholds — absolute input-token counts. */
 export const DEFAULT_THRESHOLD_SETTINGS: ThresholdSettings = {
-  contextWindowTokens: 200_000,
-  warnPct: 70,
-  checkpointPct: 85,
-  handoffPct: 90,
+  contextWindowTokens: 1_000_000,
+  warnTokens: 300_000,
+  checkpointTokens: 500_000,
+  handoffTokens: 800_000,
 };
 
 /** Section order used to determine the "next section" after a checkpoint. */
@@ -241,22 +241,25 @@ export async function handleContextThresholds(
   inputTokens: number,
   thresholds: ThresholdSettings = DEFAULT_THRESHOLD_SETTINGS,
 ): Promise<ThresholdResult> {
+  // Display percentage (for the UI gauge) is still relative to the window.
   const pct = computeContextPct(inputTokens, thresholds.contextWindowTokens);
 
   // Always persist the latest token percentage.
   await updateContextPct(db, brd.id, pct);
 
-  if (pct >= thresholds.handoffPct) {
+  // Threshold DECISIONS are based on absolute input-token counts, independent of
+  // the (large, auto-derived) window size.
+  if (inputTokens >= thresholds.handoffTokens) {
     const pkg = await generateHandoffPackage(db, llm, brd, sections);
     return { action: 'handoff', contextPct: pct, handoffPackage: pkg };
   }
 
-  if (pct >= thresholds.checkpointPct) {
+  if (inputTokens >= thresholds.checkpointTokens) {
     await autoCheckpointActiveSection(db, llm, brd, sections);
     return { action: 'checkpoint', contextPct: pct };
   }
 
-  if (pct >= thresholds.warnPct) {
+  if (inputTokens >= thresholds.warnTokens) {
     // Warn only — no automatic action per ADR-0001.
     return { action: 'warn', contextPct: pct };
   }

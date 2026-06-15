@@ -32,6 +32,13 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
   const { role, status } = message;
   const content =
     role === 'assistant' ? stripStructuredBlocks(message.content) : message.content;
+  // True while the agent is mid-way through a structured block (epics / stories /
+  // section draft) that we strip from the chat — the visible bubble would
+  // otherwise look frozen during a long (up to ~1 min) generation.
+  const isGeneratingBlock =
+    role === 'assistant' &&
+    status === 'streaming' &&
+    /<(section_draft|epics|stories)\b/i.test(message.content);
 
   if (role === 'system') {
     const isHandoff = content.toLowerCase().includes('session limit');
@@ -107,12 +114,26 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
           </div>
         ) : (
           <>
-            <p className="whitespace-pre-wrap break-words">
-              {content}
-              {status === 'streaming' && (
-                <span aria-hidden="true" className="ml-0.5 inline-block w-0.5 h-4 bg-accent animate-pulse align-middle" />
-              )}
-            </p>
+            {content.trim() !== '' && (
+              <p className="whitespace-pre-wrap break-words">
+                {content}
+                {status === 'streaming' && !isGeneratingBlock && (
+                  <span aria-hidden="true" className="ml-0.5 inline-block w-0.5 h-4 bg-accent animate-pulse align-middle" />
+                )}
+              </p>
+            )}
+            {/* Progress while a hidden structured block is being generated (or
+                before any visible text has streamed yet). */}
+            {status === 'streaming' && (isGeneratingBlock || content.trim() === '') && (
+              <div className={cn('flex items-center gap-2 text-muted-foreground', content.trim() !== '' && 'mt-2')}>
+                <span className="flex gap-1" aria-hidden="true">
+                  <span className="h-2 w-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                </span>
+                <span className="text-sm">Generating… detailed user stories can take a minute or two.</span>
+              </div>
+            )}
             {status === 'truncated' && (
               <p className="mt-2 text-sm text-warning border-t border-warning/20 pt-2">
                 Response was cut off.{' '}

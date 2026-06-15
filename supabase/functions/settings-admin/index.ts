@@ -47,9 +47,9 @@ import { verifyAuth, getServiceClient, requireAdmin } from '../_shared/supabase-
 
 const PHASE1_KEYS = new Set([
   'context.window_tokens',
-  'context.threshold_warn_pct',
-  'context.threshold_checkpoint_pct',
-  'context.threshold_handoff_pct',
+  'context.threshold_warn_tokens',
+  'context.threshold_checkpoint_tokens',
+  'context.threshold_handoff_tokens',
   'context.max_turns_per_section',
 ]);
 
@@ -66,15 +66,15 @@ const VALID_PROMPT_KEYS = new Set(['platform_layer', 'agent_skill', 'channel_map
 function validateSettingValue(key: string, value: unknown): string | null {
   switch (key) {
     case 'context.window_tokens': {
-      if (!Number.isInteger(value) || (value as number) < 50_000 || (value as number) > 200_000)
-        return 'window_tokens must be an integer between 50000 and 200000';
+      if (!Number.isInteger(value) || (value as number) < 50_000 || (value as number) > 1_000_000)
+        return 'window_tokens must be an integer between 50000 and 1000000';
       break;
     }
-    case 'context.threshold_warn_pct':
-    case 'context.threshold_checkpoint_pct':
-    case 'context.threshold_handoff_pct': {
-      if (!Number.isInteger(value) || (value as number) < 50 || (value as number) > 99)
-        return `${key} must be an integer between 50 and 99`;
+    case 'context.threshold_warn_tokens':
+    case 'context.threshold_checkpoint_tokens':
+    case 'context.threshold_handoff_tokens': {
+      if (!Number.isInteger(value) || (value as number) < 10_000 || (value as number) > 1_000_000)
+        return `${key} must be an integer between 10000 and 1000000`;
       break;
     }
     case 'context.max_turns_per_section': {
@@ -207,24 +207,24 @@ async function handlePatchSetting(req: Request, userId: string): Promise<Respons
 
   // Cross-key threshold ordering check when updating any threshold.
   if (
-    key === 'context.threshold_warn_pct' ||
-    key === 'context.threshold_checkpoint_pct' ||
-    key === 'context.threshold_handoff_pct'
+    key === 'context.threshold_warn_tokens' ||
+    key === 'context.threshold_checkpoint_tokens' ||
+    key === 'context.threshold_handoff_tokens'
   ) {
     // Fetch the current values of all three thresholds.
     const { data: thresholdRows } = await db
       .from('app_settings')
       .select('key, value')
       .in('key', [
-        'context.threshold_warn_pct',
-        'context.threshold_checkpoint_pct',
-        'context.threshold_handoff_pct',
+        'context.threshold_warn_tokens',
+        'context.threshold_checkpoint_tokens',
+        'context.threshold_handoff_tokens',
       ]);
 
     const current: Record<string, number> = {
-      'context.threshold_warn_pct': 70,
-      'context.threshold_checkpoint_pct': 85,
-      'context.threshold_handoff_pct': 90,
+      'context.threshold_warn_tokens': 300_000,
+      'context.threshold_checkpoint_tokens': 500_000,
+      'context.threshold_handoff_tokens': 800_000,
     };
     for (const row of thresholdRows ?? []) {
       current[row.key] = Number(row.value);
@@ -233,9 +233,9 @@ async function handlePatchSetting(req: Request, userId: string): Promise<Respons
     current[key] = value as number;
 
     const orderError = validateThresholdOrdering(
-      current['context.threshold_warn_pct'],
-      current['context.threshold_checkpoint_pct'],
-      current['context.threshold_handoff_pct'],
+      current['context.threshold_warn_tokens'],
+      current['context.threshold_checkpoint_tokens'],
+      current['context.threshold_handoff_tokens'],
     );
     if (orderError) return err(orderError);
   }
@@ -295,30 +295,30 @@ async function handlePatchSettingsBulk(req: Request, userId: string): Promise<Re
   // Validate the FINAL threshold ordering once (current DB overlaid with all
   // incoming changes) — atomic, so no transient out-of-order state can be rejected.
   const touchesThreshold = updates.some((u) =>
-    u.key === 'context.threshold_warn_pct' ||
-    u.key === 'context.threshold_checkpoint_pct' ||
-    u.key === 'context.threshold_handoff_pct');
+    u.key === 'context.threshold_warn_tokens' ||
+    u.key === 'context.threshold_checkpoint_tokens' ||
+    u.key === 'context.threshold_handoff_tokens');
 
   if (touchesThreshold) {
     const { data: rows } = await db
       .from('app_settings')
       .select('key, value')
       .in('key', [
-        'context.threshold_warn_pct',
-        'context.threshold_checkpoint_pct',
-        'context.threshold_handoff_pct',
+        'context.threshold_warn_tokens',
+        'context.threshold_checkpoint_tokens',
+        'context.threshold_handoff_tokens',
       ]);
     const cur: Record<string, number> = {
-      'context.threshold_warn_pct': 70,
-      'context.threshold_checkpoint_pct': 85,
-      'context.threshold_handoff_pct': 90,
+      'context.threshold_warn_tokens': 300_000,
+      'context.threshold_checkpoint_tokens': 500_000,
+      'context.threshold_handoff_tokens': 800_000,
     };
     for (const r of rows ?? []) cur[r.key] = Number(r.value);
     for (const u of updates) if (u.key in cur) cur[u.key] = u.value as number;
     const oe = validateThresholdOrdering(
-      cur['context.threshold_warn_pct'],
-      cur['context.threshold_checkpoint_pct'],
-      cur['context.threshold_handoff_pct'],
+      cur['context.threshold_warn_tokens'],
+      cur['context.threshold_checkpoint_tokens'],
+      cur['context.threshold_handoff_tokens'],
     );
     if (oe) return err(oe);
   }

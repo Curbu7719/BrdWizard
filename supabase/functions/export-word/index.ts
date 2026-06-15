@@ -50,6 +50,8 @@ interface BrdDocRow {
   change_type: string;
   impacted_channels: string[];
   status: string;
+  expected_value: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -142,6 +144,19 @@ function titlePage(brd: BrdDocRow): Paragraph[] {
       text: '',
     }),
   ];
+}
+
+/** Un-numbered free-text block with a heading (Expected Value, Notes). */
+function textBlock(heading: string, content: string): Paragraph[] {
+  const paragraphs: Paragraph[] = [
+    new Paragraph({ text: heading, heading: HeadingLevel.HEADING_1 }),
+    spacer(),
+  ];
+  for (const line of content.split('\n')) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: line })] }));
+  }
+  paragraphs.push(spacer());
+  return paragraphs;
 }
 
 function sectionBlock(section: SectionRow, number: number): Paragraph[] {
@@ -344,6 +359,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Title page.
   children.push(...titlePage(brd));
 
+  // Expected Value (user-authored), if provided.
+  if (brd.expected_value && brd.expected_value.trim()) {
+    children.push(...textBlock('Expected Value', brd.expected_value.trim()));
+  }
+
   // Sections: background (1), objective (2).
   const namedSections = sections.filter(
     (s) => s.section_key !== 'epics_overview',
@@ -377,6 +397,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ...epicBlock(epic, stories, idx + 1, epicsSectionNumber),
     );
   });
+
+  // Notes (user-authored), if provided — at the very end.
+  if (brd.notes && brd.notes.trim()) {
+    children.push(...textBlock('Notes', brd.notes.trim()));
+  }
 
   // Build the Document.
   const doc = new Document({

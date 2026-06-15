@@ -44,9 +44,9 @@ export interface AppSettings {
   ai_temperature: number | null;
   // Group 2: Context & Turns (Phase 1)
   context_window_tokens: number;
-  context_threshold_warn_pct: number;
-  context_threshold_checkpoint_pct: number;
-  context_threshold_handoff_pct: number;
+  context_threshold_warn_tokens: number;
+  context_threshold_checkpoint_tokens: number;
+  context_threshold_handoff_tokens: number;
   context_max_turns_per_section: number;
   // Group 3: Classification & Files (Phase 2)
   classification_product_types: string[];
@@ -69,13 +69,18 @@ export interface ActivePrompts {
 
 const DEFAULTS: AppSettings = {
   ai_model_id: 'claude-sonnet-4-6',
-  ai_stream_max_tokens: 16000,
+  ai_stream_max_tokens: 8000,
   ai_complete_max_tokens: 1024,
   ai_temperature: null,
-  context_window_tokens: 200_000,
-  context_threshold_warn_pct: 70,
-  context_threshold_checkpoint_pct: 85,
-  context_threshold_handoff_pct: 90,
+  // Fallback only — the real value is auto-derived from the model's Models API
+  // (max_input_tokens). Used when that lookup is unavailable.
+  context_window_tokens: 1_000_000,
+  // Absolute INPUT-token thresholds (not percentages). The context window is
+  // auto-derived (~1M) so percentage thresholds never fired in practice; these
+  // fire at fixed token counts regardless of window size.
+  context_threshold_warn_tokens: 300_000,
+  context_threshold_checkpoint_tokens: 500_000,
+  context_threshold_handoff_tokens: 800_000,
   context_max_turns_per_section: 15,
   classification_product_types: ['prepaid', 'postpaid', 'both'],
   classification_mobility_types: ['mobile', 'fixed', 'both'],
@@ -152,6 +157,15 @@ async function refreshCache(db: SupabaseClient): Promise<void> {
       console.warn('[settings] app_settings query failed (using defaults):', settingsError.message);
     }
 
+    // Context window is AUTO-DERIVED from whatever the model's API actually
+    // supports (Models API → max_input_tokens), so nobody has to hand-maintain
+    // a number. The value in app_settings / DEFAULTS is only a FALLBACK used
+    // when the lookup is unavailable (no API key, network error, etc.).
+    const modelWindow = await fetchModelMaxInputTokens(cachedSettings.ai_model_id);
+    if (modelWindow && modelWindow > 0) {
+      cachedSettings.context_window_tokens = modelWindow;
+    }
+
     // One round-trip: load all active prompt versions.
     // IMPORTANT: only a NON-default active version (an admin customization)
     // overrides the embedded prompt. When the active version is the default
@@ -184,6 +198,53 @@ async function refreshCache(db: SupabaseClient): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Model context-window lookup (Anthropic Models API)
+// ---------------------------------------------------------------------------
+
+// Cache the model→window mapping per isolate so we hit the Models API at most
+// once per model per cache cycle. Keyed by model id.
+const modelWindowCache = new Map<string, number>();
+let modelWindowCacheExpiresAt = 0;
+
+/**
+ * Returns the model's native maximum input context (Models API → max_input_tokens),
+ * or null if the lookup fails for any reason. Never throws; callers fall back to
+ * the stored/default window value when this returns null.
+ */
+async function fetchModelMaxInputTokens(modelId: string): Promise<number | null> {
+  if (Date.now() < modelWindowCacheExpiresAt && modelWindowCache.has(modelId)) {
+    return modelWindowCache.get(modelId)!;
+  }
+
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) return null; // e.g. a non-Anthropic provider — use the fallback.
+
+  try {
+    const res = await fetch(`https://api.anthropic.com/v1/models/${modelId}`, {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+    });
+    if (!res.ok) {
+      console.warn('[settings] Models API lookup failed:', res.status, await res.text());
+      return null;
+    }
+    const body = await res.json();
+    const max = body?.max_input_tokens;
+    if (typeof max === 'number' && max > 0) {
+      modelWindowCache.set(modelId, max);
+      modelWindowCacheExpiresAt = Date.now() + CACHE_TTL_MS;
+      return max;
+    }
+    return null;
+  } catch (err) {
+    console.warn('[settings] Models API lookup error (using fallback window):', err);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Row applicator
 // ---------------------------------------------------------------------------
 
@@ -207,14 +268,14 @@ function applySettingRow(s: AppSettings, key: string, value: unknown): void {
     case 'context.window_tokens':
       if (typeof value === 'number') s.context_window_tokens = value;
       break;
-    case 'context.threshold_warn_pct':
-      if (typeof value === 'number') s.context_threshold_warn_pct = value;
+    case 'context.threshold_warn_tokens':
+      if (typeof value === 'number') s.context_threshold_warn_tokens = value;
       break;
-    case 'context.threshold_checkpoint_pct':
-      if (typeof value === 'number') s.context_threshold_checkpoint_pct = value;
+    case 'context.threshold_checkpoint_tokens':
+      if (typeof value === 'number') s.context_threshold_checkpoint_tokens = value;
       break;
-    case 'context.threshold_handoff_pct':
-      if (typeof value === 'number') s.context_threshold_handoff_pct = value;
+    case 'context.threshold_handoff_tokens':
+      if (typeof value === 'number') s.context_threshold_handoff_tokens = value;
       break;
     case 'context.max_turns_per_section':
       if (typeof value === 'number') s.context_max_turns_per_section = value;

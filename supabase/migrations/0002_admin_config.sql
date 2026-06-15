@@ -32,10 +32,10 @@ create policy "app_settings_admin_write" on public.app_settings
 -- ── Phase-1 seed: Context & Turn Limits (ADMIN-CONFIG.md §2, Group 2) ──────
 
 insert into public.app_settings (key, value, description) values
-  ('context.window_tokens',            '200000', 'Model context window size in tokens'),
-  ('context.threshold_warn_pct',       '70',     'Context % at which to warn the user'),
-  ('context.threshold_checkpoint_pct', '85',     'Context % at which to auto-checkpoint the active section'),
-  ('context.threshold_handoff_pct',    '90',     'Context % at which to generate a session handoff package'),
+  ('context.window_tokens',            '1000000', 'Model context window size in tokens'),
+  ('context.threshold_warn_tokens',       '300000', 'Input-token count at which to warn the user'),
+  ('context.threshold_checkpoint_tokens', '500000', 'Input-token count at which to auto-checkpoint the active section'),
+  ('context.threshold_handoff_tokens',    '800000', 'Input-token count at which to generate a session handoff package'),
   ('context.max_turns_per_section',    '15',     'Maximum conversation turns allowed per section before forced draft');
 
 -- ============================================================

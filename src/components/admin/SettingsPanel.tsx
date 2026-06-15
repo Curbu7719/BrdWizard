@@ -12,9 +12,9 @@ import { callEdgeFunctionGet, callEdgeFunctionPatch } from '../../lib/sse';
 
 interface ContextSettings {
   'context.window_tokens': number;
-  'context.threshold_warn_pct': number;
-  'context.threshold_checkpoint_pct': number;
-  'context.threshold_handoff_pct': number;
+  'context.threshold_warn_tokens': number;
+  'context.threshold_checkpoint_tokens': number;
+  'context.threshold_handoff_tokens': number;
   'context.max_turns_per_section': number;
 }
 
@@ -39,35 +39,35 @@ interface FieldDef {
 const FIELDS: FieldDef[] = [
   {
     key: 'context.window_tokens',
-    label: 'Context Window (tokens)',
-    help: 'Model context window size in tokens. Range: 50,000 – 200,000.',
+    label: 'Context Window (tokens) — fallback',
+    help: 'Auto-detected from the model API (max_input_tokens). This value is only used as a fallback if that lookup is unavailable. Range: 50,000 – 1,000,000.',
     min: 50000,
-    max: 200000,
-    defaultValue: 200000,
+    max: 1000000,
+    defaultValue: 1000000,
   },
   {
-    key: 'context.threshold_warn_pct',
-    label: 'Warn Threshold (%)',
-    help: 'Context percentage at which to warn the user. Range: 50 – 89.',
-    min: 50,
-    max: 89,
-    defaultValue: 70,
+    key: 'context.threshold_warn_tokens',
+    label: 'Warn Threshold (tokens)',
+    help: 'Input-token count at which to warn the user. Range: 10,000 – 1,000,000.',
+    min: 10000,
+    max: 1000000,
+    defaultValue: 300000,
   },
   {
-    key: 'context.threshold_checkpoint_pct',
-    label: 'Checkpoint Threshold (%)',
-    help: 'Context percentage at which to auto-checkpoint the active section. Range: 51 – 94.',
-    min: 51,
-    max: 94,
-    defaultValue: 85,
+    key: 'context.threshold_checkpoint_tokens',
+    label: 'Checkpoint Threshold (tokens)',
+    help: 'Input-token count at which to auto-checkpoint the active section. Range: 10,000 – 1,000,000.',
+    min: 10000,
+    max: 1000000,
+    defaultValue: 500000,
   },
   {
-    key: 'context.threshold_handoff_pct',
-    label: 'Handoff Threshold (%)',
-    help: 'Context percentage at which to generate a session handoff package. Range: 55 – 99.',
-    min: 55,
-    max: 99,
-    defaultValue: 90,
+    key: 'context.threshold_handoff_tokens',
+    label: 'Handoff Threshold (tokens)',
+    help: 'Input-token count at which to generate a session handoff package. Range: 10,000 – 1,000,000.',
+    min: 10000,
+    max: 1000000,
+    defaultValue: 800000,
   },
   {
     key: 'context.max_turns_per_section',
@@ -110,10 +110,10 @@ export function SettingsPanel() {
 
   // Raw string values for inputs (users type strings)
   const [values, setValues] = useState<Record<string, string>>({
-    'context.window_tokens': '200000',
-    'context.threshold_warn_pct': '70',
-    'context.threshold_checkpoint_pct': '85',
-    'context.threshold_handoff_pct': '90',
+    'context.window_tokens': '1000000',
+    'context.threshold_warn_tokens': '300000',
+    'context.threshold_checkpoint_tokens': '500000',
+    'context.threshold_handoff_tokens': '800000',
     'context.max_turns_per_section': '15',
   });
 
@@ -180,9 +180,9 @@ export function SettingsPanel() {
 
     // Re-run threshold order check with the updated value
     const next = { ...values, [key]: raw };
-    const warn = Number(next['context.threshold_warn_pct']);
-    const ckpt = Number(next['context.threshold_checkpoint_pct']);
-    const hand = Number(next['context.threshold_handoff_pct']);
+    const warn = Number(next['context.threshold_warn_tokens']);
+    const ckpt = Number(next['context.threshold_checkpoint_tokens']);
+    const hand = Number(next['context.threshold_handoff_tokens']);
     if (
       Number.isInteger(warn) &&
       Number.isInteger(ckpt) &&
@@ -231,9 +231,9 @@ export function SettingsPanel() {
     setFieldErrors(errors);
 
     const orderErr = validateThresholdOrder(
-      numeric['context.threshold_warn_pct'],
-      numeric['context.threshold_checkpoint_pct'],
-      numeric['context.threshold_handoff_pct']
+      numeric['context.threshold_warn_tokens'],
+      numeric['context.threshold_checkpoint_tokens'],
+      numeric['context.threshold_handoff_tokens']
     );
     setOrderError(orderErr);
     if (orderErr) anyError = true;
@@ -291,9 +291,9 @@ export function SettingsPanel() {
         {FIELDS.map(field => {
           const err = fieldErrors[field.key];
           const isThreshold = [
-            'context.threshold_warn_pct',
-            'context.threshold_checkpoint_pct',
-            'context.threshold_handoff_pct',
+            'context.threshold_warn_tokens',
+            'context.threshold_checkpoint_tokens',
+            'context.threshold_handoff_tokens',
           ].includes(field.key);
 
           return (
@@ -318,7 +318,7 @@ export function SettingsPanel() {
                 </p>
               )}
               {/* Show order error under the last threshold field */}
-              {isThreshold && field.key === 'context.threshold_handoff_pct' && orderError && (
+              {isThreshold && field.key === 'context.threshold_handoff_tokens' && orderError && (
                 <p role="alert" className="text-xs text-destructive">
                   {orderError}
                 </p>

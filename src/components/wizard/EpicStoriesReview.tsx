@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
-import { CheckCircle, Plus, X } from 'lucide-react';
+import { CheckCircle, Plus, X, Pencil } from 'lucide-react';
 import type { UserStory } from '../../types/brd';
 
 interface EpicStoriesReviewProps {
@@ -80,12 +80,21 @@ function StoryRow({ story, onEdit, onRemove, disabled, autoFocus }: StoryRowProp
       ) : (
         <div className="flex items-start gap-2">
           <p
-            className="flex-1 text-sm text-foreground leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-accent-foreground"
+            className="flex-1 text-sm text-foreground leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-accent"
             title="Click to edit"
             onClick={() => !disabled && setEditing(true)}
           >
             {story.full_text || <span className="text-muted-foreground italic">Empty — click to edit</span>}
           </p>
+          <button
+            type="button"
+            aria-label="Edit story"
+            className="shrink-0 mt-0.5 rounded p-0.5 text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40"
+            onClick={() => setEditing(true)}
+            disabled={disabled}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
           <button
             type="button"
             aria-label="Remove story"

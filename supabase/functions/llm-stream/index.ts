@@ -239,9 +239,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Threshold settings object for checkpoint.ts.
   const thresholds: ThresholdSettings = {
     contextWindowTokens: settings.context_window_tokens,
-    warnPct: settings.context_threshold_warn_pct,
-    checkpointPct: settings.context_threshold_checkpoint_pct,
-    handoffPct: settings.context_threshold_handoff_pct,
+    warnTokens: settings.context_threshold_warn_tokens,
+    checkpointTokens: settings.context_threshold_checkpoint_tokens,
+    handoffTokens: settings.context_threshold_handoff_tokens,
   };
 
   // Create LLM provider.
