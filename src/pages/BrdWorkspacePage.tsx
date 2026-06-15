@@ -384,7 +384,7 @@ export default function BrdWorkspacePage() {
 
   // ── Other handlers ──────────────────────────────────────────────────────────
 
-  async function handleSaveBrdField(field: 'expected_value' | 'notes', value: string) {
+  async function handleSaveBrdField(field: 'expected_value' | 'notes' | 'reports', value: string) {
     if (!brd) return;
     const { error } = await supabase
       .from('brd_documents')
@@ -580,6 +580,7 @@ export default function BrdWorkspacePage() {
             onEditStory={handleEditStory}
             expectedValue={brd.expected_value ?? ''}
             notes={brd.notes ?? ''}
+            reports={brd.reports ?? ''}
             onSaveField={handleSaveBrdField}
             onGenerateBrd={() => doExport(false)}
             generating={generating}

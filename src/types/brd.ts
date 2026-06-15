@@ -48,6 +48,8 @@ export interface BrdDocument {
   expected_value: string | null;
   /** User-authored: free-form notes. */
   notes: string | null;
+  /** User-authored: reporting requirements. */
+  reports: string | null;
   created_at: string;
   updated_at: string;
 }

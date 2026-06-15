@@ -52,6 +52,7 @@ interface BrdDocRow {
   status: string;
   expected_value: string | null;
   notes: string | null;
+  reports: string | null;
   created_at: string;
 }
 
@@ -397,6 +398,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ...epicBlock(epic, stories, idx + 1, epicsSectionNumber),
     );
   });
+
+  // Reports (user-authored reporting requirements), if provided.
+  if (brd.reports && brd.reports.trim()) {
+    children.push(...textBlock('Reports', brd.reports.trim()));
+  }
 
   // Notes (user-authored), if provided — at the very end.
   if (brd.notes && brd.notes.trim()) {

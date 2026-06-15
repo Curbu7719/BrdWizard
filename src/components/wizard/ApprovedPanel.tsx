@@ -18,8 +18,10 @@ interface ApprovedPanelProps {
   expectedValue: string;
   /** User-authored free-form notes. */
   notes: string;
-  /** Persist a user-authored field (expected_value | notes). */
-  onSaveField: (field: 'expected_value' | 'notes', value: string) => void | Promise<void>;
+  /** User-authored reporting requirements. */
+  reports: string;
+  /** Persist a user-authored field (expected_value | notes | reports). */
+  onSaveField: (field: 'expected_value' | 'notes' | 'reports', value: string) => void | Promise<void>;
   onGenerateBrd: () => void;
   generating: boolean;
 }
@@ -34,6 +36,7 @@ export function ApprovedPanel({
   onEditStory,
   expectedValue,
   notes,
+  reports,
   onSaveField,
   onGenerateBrd,
   generating,
@@ -85,6 +88,12 @@ export function ApprovedPanel({
               placeholder="What business value or outcome do you expect from this BRD?"
               value={expectedValue}
               onSave={text => onSaveField('expected_value', text)}
+            />
+            <BrdInputCard
+              label="Reports"
+              placeholder="Reporting requirements — what reports are needed, fields, frequency, recipients…"
+              value={reports}
+              onSave={text => onSaveField('reports', text)}
             />
             <BrdInputCard
               label="Notes"
