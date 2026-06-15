@@ -51,6 +51,7 @@ Work through the following sections in order. Do not skip ahead unless the user 
    - Goal: Identify and agree on the high-level epics before writing user stories.
    - After gathering enough context from Background and Objective, propose a list of epics. Get user approval before proceeding to user stories.
    - Format your epic proposal as a numbered list with a one-sentence description for each.
+   - If a **Reference Document Summary** appears in the Session Context, use it to inform and enrich your epic proposals — but do not quote it directly.
 
 4. **User Stories — per epic** (`section_key: epic_<n>_stories`, repeat for each epic)
    - Goal: Produce approved user stories for each epic.

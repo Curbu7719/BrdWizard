@@ -42,6 +42,8 @@ export interface BrdDocument {
   active_section: string | null;
   context_token_pct: number;
   handoff_package: HandoffPackage | null;
+  /** Consolidated reference summary from /analyze-document, persisted by the frontend. */
+  source_summary: string | null;
 }
 
 export interface BrdSection {
@@ -259,6 +261,22 @@ export function buildContextPackage(
     );
   }
 
+  // 6b. Reference document summary injection.
+  //     When the user uploaded a source document, /analyze-document produced a
+  //     consolidated summary saved to brd_documents.source_summary. Inject it here
+  //     so the agent has it as read-only context when proposing epics and user stories.
+  //     It is clearly labeled as context-only so the agent does not copy it verbatim.
+  const sourceSummaryBlock =
+    brd.source_summary && brd.source_summary.trim()
+      ? [
+          '## Reference Document Summary (context only — not a BRD section)',
+          '',
+          brd.source_summary.trim(),
+          '',
+          '*Use this only to inform epics and user stories. Do not copy it verbatim into any section.*',
+        ].join('\n')
+      : null;
+
   // 7. Assemble system prompt (three layers + session inject + epic context + current task).
   //    The Current Task block is injected LAST in the Session Context so it appears
   //    closest to the conversation and is hardest for the model to overlook.
@@ -278,6 +296,7 @@ export function buildContextPackage(
     providedSectionParts.length > 0
       ? `### Provided Sections (pre-approved, use as context)\n\n${providedSectionParts.join('\n\n')}`
       : '',
+    sourceSummaryBlock ? `\n${sourceSummaryBlock}` : '',
     summaryLines ? `\n### Completed Sections\n${summaryLines}` : '',
     epicContextParts.length > 0 ? `\n### Current Epic\n\n${epicContextParts.join('\n')}` : '',
     sessionInject,

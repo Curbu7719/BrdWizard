@@ -19,7 +19,7 @@
  *   5. Set LLM_PROVIDER=copilot env var and uncomment the factory branch in index.ts.
  */
 
-import type { LLMProvider, ChatMessage, CompletionOptions, StreamEvent } from './types.ts';
+import type { LLMProvider, ChatMessage, CompletionOptions, StreamEvent, DocumentInput } from './types.ts';
 
 export class CopilotProvider implements LLMProvider {
   // TODO: replace with the actual model identifier exposed by the Copilot SDK.
@@ -54,6 +54,20 @@ export class CopilotProvider implements LLMProvider {
     // Non-streaming is more likely available — implement this first when migrating.
     // TODO: implement
     throw new Error('CopilotProvider.complete: not yet implemented');
+  }
+
+  // deno-lint-ignore require-await
+  async summarizeDocument(
+    _input: DocumentInput,
+    _instructions: string,
+  ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+    // Native PDF document blocks and structured summarization require Claude-native
+    // features that are not available via the Copilot / Azure OpenAI SDK.
+    // This is a known seam — the analyze-document function will fail gracefully
+    // if LLM_PROVIDER=copilot is set.
+    throw new Error(
+      'CopilotProvider: document analysis not supported. Set LLM_PROVIDER=anthropic to use this feature.',
+    );
   }
 
   estimateTokens(messages: ChatMessage[]): number {

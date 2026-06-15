@@ -146,6 +146,7 @@ export default function BrdWorkspacePage() {
         impacted_channels: data.channels,
         active_section: 'epics_overview',
         updated_at: now,
+        ...(data.sourceSummary ? { source_summary: data.sourceSummary } : {}),
       })
       .eq('id', brd.id);
 

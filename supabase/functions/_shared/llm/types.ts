@@ -30,6 +30,18 @@ export interface CompletionOptions {
   systemPrompt?: string;
 }
 
+/**
+ * Input descriptor for summarizeDocument.
+ *
+ * - kind 'pdf'  → provider uses native PDF support (document content block).
+ *   base64 is the raw PDF bytes encoded as base64.
+ * - kind 'text' → provider wraps the plain text in a normal user message.
+ *   Used for pre-extracted DOCX / PPTX content.
+ */
+export type DocumentInput =
+  | { kind: 'pdf'; base64: string }
+  | { kind: 'text'; text: string };
+
 export interface LLMProvider {
   /**
    * Streaming chat — yields StreamEvents as an async iterable.
@@ -47,6 +59,23 @@ export interface LLMProvider {
   complete(
     messages: ChatMessage[],
     options: Omit<CompletionOptions, 'stream'>,
+  ): Promise<{ text: string; inputTokens: number; outputTokens: number }>;
+
+  /**
+   * Summarize a document (PDF or plain text) into a structured response.
+   *
+   * For PDF inputs the provider MUST use native PDF support (document content
+   * block) rather than attempting to parse the binary itself.
+   * For text inputs the provider wraps the text in a regular user message.
+   *
+   * The instructions string tells the model what structured output to produce.
+   *
+   * CopilotProvider throws "document analysis not supported" — callers that
+   * want this capability should ensure AnthropicProvider is active.
+   */
+  summarizeDocument(
+    input: DocumentInput,
+    instructions: string,
   ): Promise<{ text: string; inputTokens: number; outputTokens: number }>;
 
   /**

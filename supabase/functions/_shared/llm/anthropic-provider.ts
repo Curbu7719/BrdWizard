@@ -13,6 +13,7 @@ import type {
   ChatMessage,
   CompletionOptions,
   StreamEvent,
+  DocumentInput,
 } from './types.ts';
 
 /** Maximum number of retry attempts for transient errors (429 / 529). */
@@ -182,6 +183,58 @@ export class AnthropicProvider implements LLMProvider {
         budget_tokens: options.extendedThinking.budgetTokens,
       };
     }
+
+    const response = await withRetry(() =>
+      this.client.messages.create(params) as Promise<Anthropic.Message>
+    );
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as Anthropic.TextBlock).text)
+      .join('');
+
+    return {
+      text,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
+  }
+
+  async summarizeDocument(
+    input: DocumentInput,
+    instructions: string,
+  ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+    // Build the user message content depending on the input kind.
+    // PDF: use Claude's native document block so the model processes it properly.
+    // Text: wrap in a plain text message — the content was pre-extracted by the caller.
+    let userContent: Anthropic.MessageParam['content'];
+
+    if (input.kind === 'pdf') {
+      userContent = [
+        {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: input.base64,
+          },
+        } as unknown as Anthropic.ContentBlockParam,
+        {
+          type: 'text',
+          text: instructions,
+        },
+      ];
+    } else {
+      userContent = `${instructions}\n\nDocument content:\n${input.text}`;
+    }
+
+    // max_tokens: background (≤3000 chars ≈ 750 tok) + objective (≈750 tok)
+    // + classification element + XML tags + headroom = 2048 is sufficient.
+    const params: Anthropic.MessageCreateParamsNonStreaming = {
+      model: this.modelId,
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: userContent }],
+    };
 
     const response = await withRetry(() =>
       this.client.messages.create(params) as Promise<Anthropic.Message>

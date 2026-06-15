@@ -37,4 +37,4 @@ export function createLLMProvider(): LLMProvider {
 }
 
 // Re-export types so callers can import from a single path.
-export type { LLMProvider, ChatMessage, StreamEvent, CompletionOptions } from './types.ts';
+export type { LLMProvider, ChatMessage, StreamEvent, CompletionOptions, DocumentInput } from './types.ts';
