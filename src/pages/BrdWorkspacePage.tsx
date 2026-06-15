@@ -9,7 +9,8 @@ import { callEdgeFunction } from '../lib/sse';
 import { ChatPanel } from '../components/wizard/ChatPanel';
 import { ApprovedPanel } from '../components/wizard/ApprovedPanel';
 import { WorkspaceHeader } from '../components/wizard/WorkspaceHeader';
-import { ConfirmDialog } from '../components/shared/ConfirmDialog';
+import { ScoreDialog } from '../components/wizard/ScoreDialog';
+import { computeBrdScore, type BrdScore } from '../lib/brdScore';
 import { Spinner } from '../components/shared/Spinner';
 import { exportWord } from '../lib/sse';
 import { toast } from '../hooks/useToast';
@@ -41,14 +42,16 @@ export default function BrdWorkspacePage() {
     warnings,
     stage: reviewStage,
     busy: reviewBusy,
-    openCount: openWarningCount,
     submitForReview,
     acknowledge: acknowledgeWarning,
   } = useReview(id!, brd?.review_stage ?? 'none');
 
   const [contextPct, setContextPct] = useState<number | undefined>(undefined);
   const [generating, setGenerating] = useState(false);
-  const [confirmPartial, setConfirmPartial] = useState(false);
+  const [scoreDialog, setScoreDialog] = useState<{ open: boolean; score: BrdScore | null }>({
+    open: false,
+    score: null,
+  });
 
   // ── Classification ──────────────────────────────────────────────────────────
   // Shown once on first entry when the BRD has never been classified.
@@ -451,9 +454,11 @@ export default function BrdWorkspacePage() {
   async function doExport(force = false) {
     if (!brd) return;
 
-    const hasIncomplete = sections.some(s => s.status !== 'approved');
-    if ((hasIncomplete || openWarningCount > 0) && !force) {
-      setConfirmPartial(true);
+    // Always compute a readiness score on Generate and surface it for confirmation.
+    // Pressing Generate again after closing gaps recomputes a fresh score.
+    if (!force) {
+      const score = computeBrdScore({ brd, sections, epics, stories, warnings });
+      setScoreDialog({ open: true, score });
       return;
     }
 
@@ -536,6 +541,10 @@ export default function BrdWorkspacePage() {
         onGenerateBrd={() => doExport(false)}
         onGeneratePartial={() => doExport(true)}
         generating={generating}
+        reviewStage={reviewStage}
+        canSubmitReview={sections.length > 0 && sections.every(s => s.status === 'approved')}
+        reviewBusy={reviewBusy}
+        onSubmitReview={handleSubmitReview}
       />
 
       {/* Small screen warning */}
@@ -613,22 +622,14 @@ export default function BrdWorkspacePage() {
         </div>
       </div>
 
-      {/* Partial BRD confirm */}
-      <ConfirmDialog
-        open={confirmPartial}
-        onOpenChange={setConfirmPartial}
-        title="Export anyway?"
-        description={
-          sections.some(s => s.status !== 'approved')
-            ? (openWarningCount > 0
-                ? `Some sections are not complete and there are ${openWarningCount} open review finding(s). Export anyway?`
-                : 'Some sections are not yet complete. Export a partial BRD?')
-            : `There are ${openWarningCount} open review finding(s). Export anyway?`
-        }
-        confirmLabel="Export Anyway"
-        cancelLabel="Continue Working"
-        onConfirm={async () => {
-          setConfirmPartial(false);
+      {/* BRD readiness score + generate confirmation */}
+      <ScoreDialog
+        open={scoreDialog.open}
+        onOpenChange={(open) => setScoreDialog(prev => ({ ...prev, open }))}
+        score={scoreDialog.score}
+        generating={generating}
+        onGenerateAnyway={async () => {
+          setScoreDialog(prev => ({ ...prev, open: false }));
           await doExport(true);
         }}
       />

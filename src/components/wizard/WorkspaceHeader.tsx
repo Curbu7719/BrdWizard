@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
 } from '../ui/dropdown-menu';
 import { useAuth } from '../../hooks/useAuth';
-import type { BrdDocument } from '../../types/brd';
+import type { BrdDocument, ReviewStage } from '../../types/brd';
 
 interface WorkspaceHeaderProps {
   brd: BrdDocument;
@@ -19,6 +19,11 @@ interface WorkspaceHeaderProps {
   onGenerateBrd: () => void;
   onGeneratePartial: () => void;
   generating: boolean;
+  /** Review pipeline. */
+  reviewStage: ReviewStage;
+  canSubmitReview: boolean;
+  reviewBusy: boolean;
+  onSubmitReview: () => void;
 }
 
 export function WorkspaceHeader({
@@ -27,6 +32,10 @@ export function WorkspaceHeader({
   onGenerateBrd,
   onGeneratePartial,
   generating,
+  reviewStage,
+  canSubmitReview,
+  reviewBusy,
+  onSubmitReview,
 }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -87,6 +96,35 @@ export function WorkspaceHeader({
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Submit for review */}
+        {(() => {
+          const running =
+            reviewStage === 'compliance_running' ||
+            reviewStage === 'compliance_done' ||
+            reviewStage === 'maturity_running';
+          if (running) {
+            return (
+              <Button size="sm" variant="outline" disabled>
+                <Spinner size="sm" />
+                Reviewing…
+              </Button>
+            );
+          }
+          const label = reviewStage === 'maturity_done' ? 'Re-run Review' : 'Submit for Review';
+          return (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onSubmitReview}
+              disabled={!canSubmitReview || reviewBusy}
+              loading={reviewBusy}
+              title={!canSubmitReview ? 'Approve all sections first' : undefined}
+            >
+              {label}
+            </Button>
+          );
+        })()}
+
         {/* Generate BRD split button */}
         <div className="flex items-center rounded-[6px] overflow-hidden border border-border divide-x divide-border">
           <Button
