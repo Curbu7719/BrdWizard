@@ -286,7 +286,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return errResponse as Response;
   }
 
-  let body: { brd_id: string };
+  let body: { brd_id: string; score?: number };
   try {
     body = await req.json();
   } catch {
@@ -296,7 +296,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  const { brd_id } = body;
+  const { brd_id, score } = body;
 
   if (!brd_id) {
     return new Response(JSON.stringify({ error: 'brd_id is required' }), {
@@ -432,6 +432,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       headers: withCors({ 'Content-Type': 'application/json' }),
     });
   }
+
+  // Audit log: record who generated this BRD, its name, and the readiness score.
+  // Non-fatal — a logging failure must not block the download.
+  await db.from('brd_generations').insert({
+    brd_id,
+    user_id: userId,
+    title: brd.title,
+    score: typeof score === 'number' ? Math.round(score) : null,
+  }).then(({ error }) => {
+    if (error) console.error('[export-word] generation log failed:', error);
+  });
 
   // Sanitise filename.
   const safeName = brd.title.replace(/[^a-zA-Z0-9\-_ ]/g, '').trim() || 'BRD';

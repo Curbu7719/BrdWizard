@@ -196,7 +196,7 @@ export async function callEdgeFunctionPatch<T>(
 }
 
 /** Trigger export-word and trigger browser download. */
-export async function exportWord(brdId: string, title: string): Promise<{ error: string | null }> {
+export async function exportWord(brdId: string, title: string, score?: number): Promise<{ error: string | null }> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return { error: 'Not authenticated' };
 
@@ -210,7 +210,7 @@ export async function exportWord(brdId: string, title: string): Promise<{ error:
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ brd_id: brdId }),
+      body: JSON.stringify({ brd_id: brdId, score }),
     });
     if (!res.ok) return { error: `Export failed (${res.status})` };
 

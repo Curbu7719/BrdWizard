@@ -5,6 +5,7 @@ const ADMIN_TABS = [
   { label: 'Channels', path: '/admin/channels' },
   { label: 'Context & Turns', path: '/admin/settings' },
   { label: 'Prompts', path: '/admin/prompts' },
+  { label: 'Reports', path: '/admin/reports' },
 ] as const;
 
 interface AdminLayoutProps {

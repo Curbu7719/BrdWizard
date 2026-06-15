@@ -188,6 +188,41 @@ async function handleGet(userId: string): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
+// GET /settings-admin/generations — BRD generation audit log (admin report)
+// ---------------------------------------------------------------------------
+
+async function handleGetGenerations(userId: string): Promise<Response> {
+  try { await requireAdmin(userId); } catch (r) { return r as Response; }
+
+  const db = getServiceClient();
+  const { data, error } = await db
+    .from('brd_generations')
+    .select('id, brd_id, title, score, created_at, user:profiles(display_name)')
+    .order('created_at', { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    console.error('[settings-admin] GET generations error:', error);
+    return err('Failed to fetch generations', 500);
+  }
+
+  // Flatten the joined profile to a plain user_name field.
+  const generations = (data ?? []).map((row) => {
+    const u = row.user as { display_name?: string | null } | null;
+    return {
+      id: row.id,
+      brd_id: row.brd_id,
+      title: row.title,
+      score: row.score,
+      created_at: row.created_at,
+      user_name: u?.display_name ?? 'Unknown user',
+    };
+  });
+
+  return json({ generations });
+}
+
+// ---------------------------------------------------------------------------
 // PATCH /settings-admin/setting — update one app_settings row
 // ---------------------------------------------------------------------------
 
@@ -547,6 +582,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // GET /settings-admin  → list settings + prompts
   if (req.method === 'GET' && path === '') {
     return handleGet(userId);
+  }
+
+  // GET /settings-admin/generations  → BRD generation audit log (admin report)
+  if (req.method === 'GET' && path === 'generations') {
+    return handleGetGenerations(userId);
   }
 
   // PATCH /settings-admin/setting (single)

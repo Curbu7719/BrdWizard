@@ -5,6 +5,7 @@ import BrdWorkspacePage from './pages/BrdWorkspacePage';
 import AdminChannelsPage from './pages/AdminChannelsPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import AdminPromptsPage from './pages/AdminPromptsPage';
+import AdminReportsPage from './pages/AdminReportsPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Toaster } from './components/shared/Toaster';
 
@@ -55,6 +56,15 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminPromptsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminReportsPage />
             </ProtectedRoute>
           }
         />

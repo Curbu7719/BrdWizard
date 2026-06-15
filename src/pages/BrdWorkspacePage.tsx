@@ -463,7 +463,7 @@ export default function BrdWorkspacePage() {
     }
 
     setGenerating(true);
-    const { error } = await exportWord(brd.id, brd.title);
+    const { error } = await exportWord(brd.id, brd.title, scoreDialog.score?.score);
     setGenerating(false);
 
     if (error) {
