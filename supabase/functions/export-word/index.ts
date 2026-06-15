@@ -208,12 +208,39 @@ function epicBlock(
       }),
     );
     for (const story of epicStories) {
+      // full_text is multi-line: headline, then "Acceptance Criteria:" + "- " bullets.
+      const lines = (story.full_text ?? '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      if (lines.length === 0) continue;
+
+      // Headline as a top-level bullet.
       paragraphs.push(
         new Paragraph({
           bullet: { level: 0 },
-          children: [new TextRun({ text: story.full_text })],
+          children: [new TextRun({ text: lines[0] })],
         }),
       );
+
+      // Remaining lines = acceptance criteria.
+      for (const line of lines.slice(1)) {
+        if (/^acceptance criteria:?$/i.test(line)) {
+          paragraphs.push(
+            new Paragraph({
+              indent: { left: 720 },
+              children: [new TextRun({ text: 'Acceptance Criteria:', italics: true })],
+            }),
+          );
+        } else {
+          paragraphs.push(
+            new Paragraph({
+              bullet: { level: 1 },
+              children: [new TextRun({ text: line.replace(/^[-*]\s*/, '') })],
+            }),
+          );
+        }
+      }
     }
   }
 

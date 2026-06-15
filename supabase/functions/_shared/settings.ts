@@ -153,13 +153,18 @@ async function refreshCache(db: SupabaseClient): Promise<void> {
     }
 
     // One round-trip: load all active prompt versions.
+    // IMPORTANT: only a NON-default active version (an admin customization)
+    // overrides the embedded prompt. When the active version is the default
+    // (or there is none), we keep the EMBEDDED text so code-level prompt
+    // improvements ship on deploy without being shadowed by a stale seed row.
     const { data: promptRows, error: promptError } = await db
       .from('prompt_versions')
-      .select('prompt_key, content')
+      .select('prompt_key, content, is_default')
       .eq('is_active', true);
 
     if (!promptError && promptRows) {
       for (const row of promptRows) {
+        if (row.is_default) continue; // default → use embedded (latest code)
         switch (row.prompt_key) {
           case 'platform_layer':  cachedPrompts.platform_layer  = row.content; break;
           case 'agent_skill':     cachedPrompts.agent_skill     = row.content; break;

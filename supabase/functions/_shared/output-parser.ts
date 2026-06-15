@@ -127,17 +127,45 @@ export function parseAgentOutput(text: string): ParseResult {
   );
   if (storiesBlock) {
     const epicId = storiesBlock[1];
-    const storyTagRe = /<story([^>]*)>([^<]*)<\/story>/g;
+    // Allow nested child tags inside <story> (headline + criteria), so use a
+    // non-greedy [\s\S] body matcher rather than [^<]*.
+    const storyTagRe = /<story([^>]*)>([\s\S]*?)<\/story>/g;
     const stories: StoryItem[] = [];
     let sm: RegExpExecArray | null;
     while ((sm = storyTagRe.exec(storiesBlock[2])) !== null) {
       const tagAttrs = sm[1];
-      const fullText = sm[2].trim();
-      if (!fullText) continue;
+      const inner = sm[2];
 
       const persona = attr(tagAttrs, 'persona') ?? '';
       const channel = attr(tagAttrs, 'channel') ?? '';
       const sortOrderStr = attr(tagAttrs, 'sort_order') ?? '0';
+
+      // Preferred structured form: <headline>…</headline> + <criteria><c>…</c>…</criteria>.
+      // Assemble full_text = headline + "Acceptance Criteria:" + "- " bullets.
+      const headlineM = inner.match(/<headline>([\s\S]*?)<\/headline>/);
+      let fullText: string;
+      if (headlineM) {
+        const headline = headlineM[1].trim();
+        const criteria: string[] = [];
+        const critBlock = inner.match(/<criteria>([\s\S]*?)<\/criteria>/);
+        if (critBlock) {
+          const cRe = /<c>([\s\S]*?)<\/c>/g;
+          let cm: RegExpExecArray | null;
+          while ((cm = cRe.exec(critBlock[1])) !== null) {
+            const t = cm[1].trim();
+            if (t) criteria.push(t);
+          }
+        }
+        fullText = headline +
+          (criteria.length > 0
+            ? '\nAcceptance Criteria:\n' + criteria.map((c) => `- ${c}`).join('\n')
+            : '');
+      } else {
+        // Fallback: flat text (older/looser form) — strip any stray tags.
+        fullText = inner.replace(/<[^>]+>/g, '').trim();
+      }
+
+      if (!fullText) continue;
 
       stories.push({
         persona,

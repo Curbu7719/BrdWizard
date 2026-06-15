@@ -128,10 +128,26 @@ Prefix the block with natural-language framing, e.g.:
 
 When you have generated all user stories for the current epic:
 
+Each `<story>` contains a `<headline>` (the one-line user story) AND a `<criteria>` block with one `<c>` element per acceptance criterion (how it works: inputs, systems, validations, success and failure handling). **Every `<story>` MUST include a non-empty `<criteria>` with at least two `<c>` items.** Do NOT use the characters `<` or `>` inside the text of a `<headline>` or `<c>` (write "less than"/"under" in words).
+
 ```xml
 <stories epic_id="{{EPIC_DB_ID}}">
-  <story persona="store employee" channel="SOT" sort_order="0">As a store employee, if I have permission, I should be able to view a subscriber's outstanding invoice on the SOT channel.</story>
-  <story persona="store manager" channel="SOT" sort_order="1">As a store manager, if I have permission, I should be able to export a subscriber's invoice history on the SOT channel.</story>
+  <story persona="store employee" channel="SOT" sort_order="0">
+    <headline>As a store employee, if I have permission, I should be able to view a subscriber's outstanding invoice on the SOT channel.</headline>
+    <criteria>
+      <c>The employee identifies the subscriber by MSISDN or T.C. Kimlik No.</c>
+      <c>The system shows the outstanding amount, due date, and billing period.</c>
+      <c>If there is no balance, a zero-balance state is shown and the view is logged with employee id and timestamp.</c>
+    </criteria>
+  </story>
+  <story persona="store manager" channel="SOT" sort_order="1">
+    <headline>As a store manager, if I have permission, I should be able to export a subscriber's invoice history on the SOT channel.</headline>
+    <criteria>
+      <c>The manager selects a date range and export format (PDF or Excel).</c>
+      <c>The system generates the export and records who exported what and when.</c>
+      <c>If no invoices exist in the range, the manager is informed and no file is produced.</c>
+    </criteria>
+  </story>
 </stories>
 ```
 

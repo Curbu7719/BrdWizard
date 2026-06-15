@@ -56,9 +56,9 @@ function StoryRow({ story, onEdit, onRemove, disabled, autoFocus }: StoryRowProp
             ref={textareaRef}
             value={draft}
             onChange={e => setDraft(e.target.value)}
-            rows={3}
-            className="text-sm resize-none"
-            placeholder="Enter user story text…"
+            rows={7}
+            className="text-sm resize-y font-mono"
+            placeholder={'As a [persona], if I have permission, I should be able to [action] on the [channel] channel.\nAcceptance Criteria:\n- …'}
             onKeyDown={e => {
               if (e.key === 'Escape') handleCancel();
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSave();
@@ -80,7 +80,7 @@ function StoryRow({ story, onEdit, onRemove, disabled, autoFocus }: StoryRowProp
       ) : (
         <div className="flex items-start gap-2">
           <p
-            className="flex-1 text-sm text-foreground leading-relaxed cursor-pointer hover:text-accent-foreground"
+            className="flex-1 text-sm text-foreground leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-accent-foreground"
             title="Click to edit"
             onClick={() => !disabled && setEditing(true)}
           >

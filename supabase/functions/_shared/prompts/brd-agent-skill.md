@@ -63,9 +63,11 @@ Work through the following sections in order. Do not skip ahead unless the user 
 
 **Be thorough — find very detailed cases. This is the most important rule of this section.**
 
-> **No fixed count.** Write exactly as many user stories as the epic genuinely requires — no more, no less. Do NOT pad the list to reach a number, and do NOT cap or truncate it to stay under one. A narrow epic may need only a few stories; a rich epic may need many. Let the scope decide. The goal is COMPLETE coverage, not a target quantity. If a capability is distinct, it gets its own story; if two phrasings describe the same capability, merge them.
+> **EVERY `<story>` MUST contain Acceptance Criteria — this is mandatory and non-negotiable.** Each `<story>` element MUST contain a `<headline>` AND a `<criteria>` block with two or more `<c>` items that specify HOW it works — the exact inputs/data the user provides (e.g., T.C. Kimlik No, MSISDN, OTP, IBAN), the system or service involved, what is validated, and what happens on success AND on failure / edge cases. A `<story>` with no `<criteria>` (headline only) is INCOMPLETE and unacceptable — you have not finished it. See "User Story Format" below for the exact XML shape. Prefer a smaller set of fully-specified stories (each WITH criteria) over a long list of bare headlines.
 
-Because every story is phrased as a positive capability ("…I should be able to **[action]**…"), you express thoroughness by **decomposing into granular stories** along these axes wherever each is genuinely meaningful for this epic:
+> **No fixed count.** Write exactly as many user stories as the epic genuinely requires — no more, no less. Do NOT pad the list to reach a number, and do NOT cap or truncate it. A narrow epic may need only a few stories; a rich epic may need many. The goal is COMPLETE coverage with full acceptance criteria, not a target quantity.
+
+You express thoroughness in TWO ways: (a) **acceptance criteria** inside every story (the primary way — the "how"), and (b) **decomposing into distinct stories** along the axes below wherever genuinely meaningful for this epic:
 
 - **Granular actions, not broad goals.** Break each capability into its smallest meaningful operations and write one story per operation. (E.g. instead of one "view invoices" story: view the current invoice; view invoice history; view a specific past invoice by date; view line-item / charge breakdown; view the invoice PDF; download / export the invoice; view payment status; view due date and outstanding amount; resend / email the invoice; filter invoices by date range; search invoices by amount or reference.)
 - **Each meaningful data state as its own story.** Reflect how behaviour differs across states — e.g. overdue vs. paid vs. partially-paid vs. disputed invoice; active vs. suspended vs. terminated subscriber; prepaid vs. postpaid; first invoice vs. historical. Write a distinct story for the states that matter.
@@ -90,33 +92,65 @@ Keep every story strictly in the required format below. Cover the breadth above 
 
 ## User Story Format
 
-User stories must follow this exact format:
+Each user story has TWO parts: a simple one-line headline, AND concrete acceptance criteria that specify HOW it works. A headline alone is NOT enough — without acceptance criteria the story is too vague to build.
+
+**Headline** (line 1) — exactly this format:
 
 > As a **[persona]**, if I have permission, I should be able to **[action]** on the **[channel]** channel.
 
+**Acceptance Criteria** (immediately after the headline) — a short list of specific, testable conditions that answer the "how": what the user inputs/provides, what data or system is involved, what gets validated, what happens on success, and what happens on failure / edge cases.
+
+You emit each story as a `<story>` element with a `<headline>` and a `<criteria>` block of `<c>` items. Every story MUST have a `<headline>` AND at least two `<c>` criteria:
+
+```xml
+<story persona="store employee" channel="SOT" sort_order="0">
+  <headline>As a store employee, if I have permission, I should be able to verify a subscriber's identity via e-Devlet on the SOT channel.</headline>
+  <criteria>
+    <c>The employee enters the subscriber's T.C. Kimlik No (11 digits) and starts e-Devlet verification.</c>
+    <c>The system calls the e-Devlet (Türkiye e-Government) identity service with the T.C. Kimlik No and required consent.</c>
+    <c>On a successful match, the system records the result, timestamp, and verifying employee, and marks the subscriber identity-verified.</c>
+    <c>On a mismatch or failure, the system shows a clear message and does NOT mark the subscriber verified.</c>
+    <c>If e-Devlet is unavailable or times out, the system offers a retry and logs the incident.</c>
+  </criteria>
+</story>
+```
+
 **Rules:**
-- Persona must be a real role at Vodafone Turkey (e.g., store employee / mağaza çalışanı, customer / abone, call center agent / çağrı merkezi temsilcisi, back-office user).
-- Action must be a specific, atomic capability — not a vague goal.
-- Channel must match one of the codes in the channel mapping (SOT, FAST, TOBI, etc.).
-- If the action spans multiple channels, write one story per channel.
-- Keep the language simple. The story should be understandable by a non-technical stakeholder.
+- The `<headline>` must follow exactly: *As a [persona], if I have permission, I should be able to [action] on the [channel] channel.* Keep the "if I have permission" clause.
+- Persona must be a real Vodafone Turkey role (store employee / mağaza çalışanı, subscriber / abone, call center agent, back-office user, etc.). Action must be specific and atomic. Channel must be a code from the channel mapping; one story per channel if it spans channels.
+- **Every story MUST have a `<criteria>` block with at least two `<c>` items.** A story with only a headline is incomplete.
+- **Criteria must be CONCRETE and domain-specific** — name the actual inputs (T.C. Kimlik No, MSISDN, IBAN, OTP…), the systems/data involved, the validations, and BOTH success AND failure/edge handling. No generic filler like "the action completes successfully".
+- **Never use the characters `<` or `>` inside a `<headline>` or `<c>`** (they break parsing). Write "less than"/"under"/"greater than" in words.
 
 ### Few-Shot Examples
 
-**Example 1 — Store channel:**
-> As a store employee, if I have permission, I should be able to view a subscriber's outstanding bill on the SOT channel.
+**Example — Store channel:**
+```xml
+<story persona="store employee" channel="SOT" sort_order="0">
+  <headline>As a store employee, if I have permission, I should be able to view a subscriber's outstanding bill on the SOT channel.</headline>
+  <criteria>
+    <c>The employee identifies the subscriber by MSISDN or T.C. Kimlik No.</c>
+    <c>The system displays the current outstanding amount, due date, and billing period.</c>
+    <c>If there is no outstanding balance, a zero-balance state is shown.</c>
+    <c>If the account is suspended or terminated, the account status is shown alongside the balance.</c>
+    <c>The view access is logged with the employee id and timestamp.</c>
+  </criteria>
+</story>
+```
 
-**Example 2 — Mobile app:**
-> As a subscriber, if I have permission, I should be able to upgrade my data package via the VF Yanımda channel.
-
-**Example 3 — Customer service:**
-> As a call center agent, if I have permission, I should be able to apply a loyalty discount to a subscriber's account on the FAST channel.
-
-**Example 4 — Chatbot:**
-> As a subscriber, if I have permission, I should be able to check my remaining data balance via the TOBI channel.
-
-**Example 5 — Back-office:**
-> As a back-office user, if I have permission, I should be able to generate a monthly subscription report on the SIEBEL channel.
+**Example — Mobile app:**
+```xml
+<story persona="subscriber" channel="VF_YANIMDA" sort_order="1">
+  <headline>As a subscriber, if I have permission, I should be able to upgrade my data package on the VF Yanımda channel.</headline>
+  <criteria>
+    <c>The subscriber sees eligible upgrade packages with price and data allowance.</c>
+    <c>Before confirming, the system shows the new monthly fee and effective date.</c>
+    <c>On confirmation, the package is applied, a confirmation reference is returned, and an SMS/notification is sent.</c>
+    <c>If the subscriber is not eligible (e.g., active commitment), the system explains why and blocks the upgrade.</c>
+    <c>If payment or provisioning fails, the package is not changed and a clear error is shown.</c>
+  </criteria>
+</story>
+```
 
 ---
 
