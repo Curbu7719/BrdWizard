@@ -44,7 +44,7 @@ const PROMPT_KEYS: Array<{ key: PromptKey; label: string; description: string }>
   {
     key: 'agent_skill',
     label: 'Agent Skill',
-    description: 'BA role, BRD process, interview style, user story format, and examples. Must contain the {{CHANNEL_MAPPING}} placeholder.',
+    description: 'BA role, BRD process, interview style, user story format, and examples. Optionally use {{CHANNEL_MAPPING}}; if omitted, the channel mapping is appended automatically.',
   },
   {
     key: 'channel_mapping',
@@ -141,9 +141,8 @@ export function PromptEditor() {
     if (!draftContent.trim()) return 'Prompt content cannot be empty.';
     if (draftContent.length > 100_000) return 'Prompt content exceeds 100,000 character limit.';
     if (draftContent.includes('\0')) return 'Prompt content contains invalid characters.';
-    if (selectedKey === 'agent_skill' && !draftContent.includes('{{CHANNEL_MAPPING}}')) {
-      return 'Agent Skill prompt must contain the {{CHANNEL_MAPPING}} placeholder. The backend will reject activation without it.';
-    }
+    // {{CHANNEL_MAPPING}} is optional — if omitted, the platform appends the
+    // channel mapping automatically. So we no longer block on it.
     return null;
   }
 
@@ -300,8 +299,9 @@ export function PromptEditor() {
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">{selectedMeta.description}</p>
               {selectedKey === 'agent_skill' && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                  Required placeholder: {'{{CHANNEL_MAPPING}}'}
+                <p className="text-xs text-muted-foreground">
+                  Optional: include {'{{CHANNEL_MAPPING}}'} where the channel mapping should appear.
+                  If omitted, it's appended automatically.
                 </p>
               )}
             </div>
@@ -463,8 +463,8 @@ export function PromptEditor() {
                 <div className="space-y-1.5">
                   <Label htmlFor="prompt-content">Prompt Content</Label>
                   {selectedKey === 'agent_skill' && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      This prompt must include {'{{CHANNEL_MAPPING}}'}. Removing it will cause activation to fail.
+                    <p className="text-xs text-muted-foreground">
+                      Optional: include {'{{CHANNEL_MAPPING}}'} to control where the channel mapping appears; if omitted it's appended automatically.
                     </p>
                   )}
                   <Textarea

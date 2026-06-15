@@ -102,16 +102,16 @@ function validateThresholdOrdering(warn: number, checkpoint: number, handoff: nu
  * Validates prompt content before insertion or activation.
  * Returns an error string, or null if valid.
  */
-function validatePromptContent(promptKey: string, content: unknown): string | null {
+function validatePromptContent(_promptKey: string, content: unknown): string | null {
   if (typeof content !== 'string' || content.trim().length === 0)
     return 'content must be a non-empty string';
   if (content.length > 100_000)
     return 'content must be ≤ 100,000 characters';
   if (content.includes('\0'))
     return 'content must not contain null bytes';
-  // agent_skill must contain the channel mapping placeholder.
-  if (promptKey === 'agent_skill' && !content.includes('{{CHANNEL_MAPPING}}'))
-    return 'agent_skill content must contain the {{CHANNEL_MAPPING}} placeholder';
+  // Note: the {{CHANNEL_MAPPING}} placeholder is OPTIONAL for agent_skill — if
+  // omitted, the platform appends the channel mapping automatically (see
+  // context-builder.assembleAgentLayer). So we do NOT reject content without it.
   return null;
 }
 

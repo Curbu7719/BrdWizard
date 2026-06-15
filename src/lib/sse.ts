@@ -120,7 +120,15 @@ export async function callEdgeFunction<T>(
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return { data: null, error: `Error ${res.status}` };
+    if (!res.ok) {
+      // Surface the backend's JSON { error } message instead of a bare status.
+      let msg = `Error ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j?.error) msg = j.error as string;
+      } catch { /* keep the status fallback */ }
+      return { data: null, error: msg };
+    }
     const data = (await res.json()) as T;
     return { data, error: null };
   } catch (err) {

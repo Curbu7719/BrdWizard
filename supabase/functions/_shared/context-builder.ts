@@ -131,8 +131,13 @@ function getPlatformLayer(prompts?: ActivePrompts): string {
 function assembleAgentLayer(prompts?: ActivePrompts): string {
   const agentText    = prompts?.agent_skill     ?? agentSkillText;
   const channelText  = prompts?.channel_mapping ?? channelMappingText;
-  // Replace the {{CHANNEL_MAPPING}} placeholder in brd-agent-skill.md.
-  return agentText.replace('{{CHANNEL_MAPPING}}', channelText);
+  // The {{CHANNEL_MAPPING}} placeholder is OPTIONAL: if present, substitute the
+  // channel mapping in place; if the author omitted it, append the mapping at the
+  // end so it is always injected and an edited agent-skill can never silently
+  // drop it (and saving never fails for a missing token).
+  return agentText.includes('{{CHANNEL_MAPPING}}')
+    ? agentText.replace('{{CHANNEL_MAPPING}}', channelText)
+    : `${agentText}\n\n## Channel-to-Domain Mapping\n\n${channelText}`;
 }
 
 // ---------------------------------------------------------------------------
