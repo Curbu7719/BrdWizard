@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useBrdDocument, useBrdActions } from '../hooks/useBrd';
 import { useChat } from '../hooks/useChat';
 import { useSections } from '../hooks/useSection';
+import { useReview } from '../hooks/useReview';
 import { supabase } from '../lib/supabase';
 import { callEdgeFunction } from '../lib/sse';
 import { ChatPanel } from '../components/wizard/ChatPanel';
@@ -35,6 +36,15 @@ export default function BrdWorkspacePage() {
     approveAllStories,
     reopenSection,
   } = useSections(id!);
+
+  const {
+    warnings,
+    stage: reviewStage,
+    busy: reviewBusy,
+    openCount: openWarningCount,
+    submitForReview,
+    acknowledge: acknowledgeWarning,
+  } = useReview(id!, brd?.review_stage ?? 'none');
 
   const [contextPct, setContextPct] = useState<number | undefined>(undefined);
   const [generating, setGenerating] = useState(false);
@@ -394,6 +404,15 @@ export default function BrdWorkspacePage() {
     else void refetchBrd();
   }
 
+  async function handleSubmitReview() {
+    const { error } = await submitForReview();
+    if (error) {
+      toast({ title: 'Could not submit for review', description: error, variant: 'destructive' });
+      return;
+    }
+    void refetchBrd();
+  }
+
   async function handleTitleChange(newTitle: string) {
     if (!brd) return;
     const { error } = await updateBrd(brd.id, { title: newTitle });
@@ -433,7 +452,7 @@ export default function BrdWorkspacePage() {
     if (!brd) return;
 
     const hasIncomplete = sections.some(s => s.status !== 'approved');
-    if (hasIncomplete && !force) {
+    if ((hasIncomplete || openWarningCount > 0) && !force) {
       setConfirmPartial(true);
       return;
     }
@@ -582,6 +601,12 @@ export default function BrdWorkspacePage() {
             notes={brd.notes ?? ''}
             reports={brd.reports ?? ''}
             onSaveField={handleSaveBrdField}
+            warnings={warnings}
+            reviewStage={reviewStage}
+            reviewBusy={reviewBusy}
+            canSubmitReview={sections.length > 0 && sections.every(s => s.status === 'approved')}
+            onSubmitReview={handleSubmitReview}
+            onAcknowledgeWarning={acknowledgeWarning}
             onGenerateBrd={() => doExport(false)}
             generating={generating}
           />
@@ -592,8 +617,14 @@ export default function BrdWorkspacePage() {
       <ConfirmDialog
         open={confirmPartial}
         onOpenChange={setConfirmPartial}
-        title="Incomplete BRD"
-        description="Some sections are not yet complete. Export a partial BRD?"
+        title="Export anyway?"
+        description={
+          sections.some(s => s.status !== 'approved')
+            ? (openWarningCount > 0
+                ? `Some sections are not complete and there are ${openWarningCount} open review finding(s). Export anyway?`
+                : 'Some sections are not yet complete. Export a partial BRD?')
+            : `There are ${openWarningCount} open review finding(s). Export anyway?`
+        }
         confirmLabel="Export Anyway"
         cancelLabel="Continue Working"
         onConfirm={async () => {

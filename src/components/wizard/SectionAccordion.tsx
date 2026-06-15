@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle, Clock, RefreshCw, Save, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle, Clock, RefreshCw, Save, X, AlertTriangle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { EpicBlock } from './EpicBlock';
-import type { BrdSection, Epic, UserStory, SectionStatus } from '../../types/brd';
+import { WarningList } from './WarningList';
+import type { BrdSection, Epic, UserStory, SectionStatus, BrdWarning } from '../../types/brd';
 
 // Sections that use inline text editing instead of chat-driven revision.
 const INLINE_EDIT_SECTIONS = new Set(['background', 'objective']);
@@ -18,6 +19,9 @@ interface SectionAccordionProps {
   onInlineSave?: (sectionKey: string, content: string) => Promise<void>;
   /** Called when the user edits a user story in place (epics section). */
   onEditStory?: (storyId: string, text: string) => void | Promise<void>;
+  /** All review findings for this BRD (filtered per section/story here). */
+  warnings?: BrdWarning[];
+  onAcknowledgeWarning?: (id: string) => void;
 }
 
 function SectionStatusIcon({ status }: { status: SectionStatus }) {
@@ -26,7 +30,7 @@ function SectionStatusIcon({ status }: { status: SectionStatus }) {
   return <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/40 inline-block" aria-label="Pending" />;
 }
 
-export function SectionAccordion({ section, epics = [], stories = [], onRevise, onInlineSave, onEditStory }: SectionAccordionProps) {
+export function SectionAccordion({ section, epics = [], stories = [], onRevise, onInlineSave, onEditStory, warnings = [], onAcknowledgeWarning }: SectionAccordionProps) {
   const [open, setOpen] = useState(section.status === 'approved' || section.status === 'in_progress');
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(section.content_full ?? '');
@@ -34,6 +38,17 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
 
   const isEpics = section.section_key === 'epics_overview';
   const isInlineEdit = INLINE_EDIT_SECTIONS.has(section.section_key);
+
+  // Findings attached to this section directly.
+  const sectionWarnings = warnings.filter(
+    w => w.target_type === 'section' && w.target_section_key === section.section_key,
+  );
+  // For the epics section, story findings also surface within it.
+  const storyWarningCount = isEpics
+    ? warnings.filter(w => w.target_type === 'story' && w.status === 'open').length
+    : 0;
+  const openBadgeCount =
+    sectionWarnings.filter(w => w.status === 'open').length + storyWarningCount;
 
   async function handleSave() {
     if (!onInlineSave || !editText.trim()) return;
@@ -76,6 +91,12 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
       >
         <SectionStatusIcon status={section.status} />
         <span className="flex-1 text-sm font-semibold text-foreground">{section.section_title}</span>
+        {openBadgeCount > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 text-warning px-2 py-0.5 text-xs font-medium" title="Open review findings">
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            {openBadgeCount}
+          </span>
+        )}
         {open
           ? <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           : <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -85,6 +106,9 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
       {/* Content */}
       {open && (
         <div id={`section-${section.id}`} className="px-4 pb-4 space-y-3">
+          {sectionWarnings.length > 0 && onAcknowledgeWarning && (
+            <WarningList warnings={sectionWarnings} onAcknowledge={onAcknowledgeWarning} />
+          )}
           {!isEpics && !editing && section.content_full && (
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{section.content_full}</p>
           )}
@@ -138,6 +162,8 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
                     epic={epic}
                     stories={stories.filter(s => s.epic_id === epic.id)}
                     onEditStory={onEditStory}
+                    warnings={warnings}
+                    onAcknowledgeWarning={onAcknowledgeWarning}
                   />
                 ))
               )}

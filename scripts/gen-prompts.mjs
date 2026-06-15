@@ -23,6 +23,10 @@ const files = {
   platformLayerText: 'platform-layer.md',
   agentSkillText: 'brd-agent-skill.md',
   channelMappingText: 'channel-mapping.md',
+  complianceKvkkText: 'compliance-kvkk.md',
+  complianceDataPrivacyText: 'compliance-data-privacy.md',
+  complianceRegulationText: 'compliance-regulation.md',
+  maturityCheckText: 'maturity-check.md',
 };
 
 let out =

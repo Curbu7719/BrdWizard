@@ -53,7 +53,15 @@ const PHASE1_KEYS = new Set([
   'context.max_turns_per_section',
 ]);
 
-const VALID_PROMPT_KEYS = new Set(['platform_layer', 'agent_skill', 'channel_mapping']);
+const VALID_PROMPT_KEYS = new Set([
+  'platform_layer',
+  'agent_skill',
+  'channel_mapping',
+  'compliance_kvkk',
+  'compliance_data_privacy',
+  'compliance_regulation',
+  'maturity_check',
+]);
 
 // ---------------------------------------------------------------------------
 // Server-side validation

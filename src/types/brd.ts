@@ -6,6 +6,14 @@
  */
 
 export type BrdStatus = 'draft' | 'complete';
+export type ReviewStage =
+  | 'none'
+  | 'compliance_running'
+  | 'compliance_done'
+  | 'maturity_running'
+  | 'maturity_done';
+export type WarningSource = 'kvkk' | 'data_privacy' | 'regulation' | 'maturity';
+export type WarningStatus = 'open' | 'acknowledged';
 export type BrdVisibility = 'public' | 'private';
 export type BrdLine = 'CBU';
 export type ProductType = 'prepaid' | 'postpaid' | 'both' | 'unknown';
@@ -50,8 +58,27 @@ export interface BrdDocument {
   notes: string | null;
   /** User-authored: reporting requirements. */
   reports: string | null;
+  /** Post-authoring review lifecycle. */
+  review_stage: ReviewStage;
+  compliance_batch_id: string | null;
+  submitted_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** A compliance (KVKK / Data Privacy / Regulation) or maturity review finding. */
+export interface BrdWarning {
+  id: string;
+  brd_id: string;
+  source: WarningSource;
+  severity: string;
+  target_type: 'section' | 'story' | 'brd';
+  target_section_key: string | null;
+  target_story_id: string | null;
+  message: string;
+  recommendation: string | null;
+  status: WarningStatus;
+  created_at: string;
 }
 
 export interface BrdSection {

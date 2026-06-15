@@ -1,8 +1,9 @@
 import { SectionAccordion } from './SectionAccordion';
 import { BrdInputCard } from './BrdInputCard';
+import { ReviewPanel } from './ReviewPanel';
 import { Button } from '../ui/button';
 import { Spinner } from '../shared/Spinner';
-import type { BrdSection, Epic, UserStory } from '../../types/brd';
+import type { BrdSection, Epic, UserStory, BrdWarning, ReviewStage } from '../../types/brd';
 
 interface ApprovedPanelProps {
   sections: BrdSection[];
@@ -22,6 +23,13 @@ interface ApprovedPanelProps {
   reports: string;
   /** Persist a user-authored field (expected_value | notes | reports). */
   onSaveField: (field: 'expected_value' | 'notes' | 'reports', value: string) => void | Promise<void>;
+  /** Review pipeline state. */
+  warnings: BrdWarning[];
+  reviewStage: ReviewStage;
+  reviewBusy: boolean;
+  canSubmitReview: boolean;
+  onSubmitReview: () => void;
+  onAcknowledgeWarning: (id: string) => void;
   onGenerateBrd: () => void;
   generating: boolean;
 }
@@ -38,9 +46,17 @@ export function ApprovedPanel({
   notes,
   reports,
   onSaveField,
+  warnings,
+  reviewStage,
+  reviewBusy,
+  canSubmitReview,
+  onSubmitReview,
+  onAcknowledgeWarning,
   onGenerateBrd,
   generating,
 }: ApprovedPanelProps) {
+  const generalWarnings = warnings.filter(w => w.target_type === 'brd');
+  const openCount = warnings.filter(w => w.status === 'open').length;
   return (
     <div className="flex flex-col h-full bg-secondary/50 overflow-hidden">
       {/* Header */}
@@ -74,8 +90,24 @@ export function ApprovedPanel({
             onRevise={onRevise}
             onInlineSave={onInlineSaveSection}
             onEditStory={onEditStory}
+            warnings={warnings}
+            onAcknowledgeWarning={onAcknowledgeWarning}
           />
         ))}
+
+        {/* Compliance & maturity review */}
+        {!loading && (
+          <ReviewPanel
+            stage={reviewStage}
+            busy={reviewBusy}
+            canSubmit={canSubmitReview}
+            openCount={openCount}
+            totalCount={warnings.length}
+            generalWarnings={generalWarnings}
+            onSubmit={onSubmitReview}
+            onAcknowledge={onAcknowledgeWarning}
+          />
+        )}
 
         {/* User-authored inputs */}
         {!loading && (

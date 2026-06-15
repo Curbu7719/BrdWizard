@@ -1,15 +1,18 @@
 import { CheckCircle } from 'lucide-react';
 import { StoryItem } from './StoryItem';
-import type { Epic, UserStory } from '../../types/brd';
+import type { Epic, UserStory, BrdWarning } from '../../types/brd';
 
 interface EpicBlockProps {
   epic: Epic;
   stories: UserStory[];
   /** When provided, each story can be edited in place. */
   onEditStory?: (storyId: string, text: string) => void | Promise<void>;
+  /** Review findings across this BRD (filtered per story below). */
+  warnings?: BrdWarning[];
+  onAcknowledgeWarning?: (id: string) => void;
 }
 
-export function EpicBlock({ epic, stories, onEditStory }: EpicBlockProps) {
+export function EpicBlock({ epic, stories, onEditStory, warnings = [], onAcknowledgeWarning }: EpicBlockProps) {
   const allApproved = stories.length > 0 && stories.every(s => s.is_approved);
 
   return (
@@ -30,7 +33,13 @@ export function EpicBlock({ epic, stories, onEditStory }: EpicBlockProps) {
       ) : (
         <ul className="space-y-0.5">
           {stories.map(story => (
-            <StoryItem key={story.id} story={story} onEdit={onEditStory} />
+            <StoryItem
+              key={story.id}
+              story={story}
+              onEdit={onEditStory}
+              warnings={warnings.filter(w => w.target_story_id === story.id)}
+              onAcknowledgeWarning={onAcknowledgeWarning}
+            />
           ))}
         </ul>
       )}

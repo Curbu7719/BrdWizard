@@ -33,7 +33,14 @@ interface PromptsResponse {
   prompts: Record<string, PromptVersion[]>;
 }
 
-type PromptKey = 'platform_layer' | 'agent_skill' | 'channel_mapping';
+type PromptKey =
+  | 'platform_layer'
+  | 'agent_skill'
+  | 'channel_mapping'
+  | 'compliance_kvkk'
+  | 'compliance_data_privacy'
+  | 'compliance_regulation'
+  | 'maturity_check';
 
 const PROMPT_KEYS: Array<{ key: PromptKey; label: string; description: string }> = [
   {
@@ -50,6 +57,26 @@ const PROMPT_KEYS: Array<{ key: PromptKey; label: string; description: string }>
     key: 'channel_mapping',
     label: 'Channel Mapping',
     description: 'Channel-to-domain mapping rules injected via the {{CHANNEL_MAPPING}} placeholder in Agent Skill.',
+  },
+  {
+    key: 'compliance_kvkk',
+    label: 'Compliance — KVKK',
+    description: 'Reviewer that checks the finished BRD against KVKK (Law 6698) and flags warnings on the relevant sections / user stories. Runs via the Batch API on submit.',
+  },
+  {
+    key: 'compliance_data_privacy',
+    label: 'Compliance — Data Privacy',
+    description: 'Reviewer applying privacy-by-design / data-protection best practice; flags privacy warnings on the relevant items. Runs via the Batch API on submit.',
+  },
+  {
+    key: 'compliance_regulation',
+    label: 'Compliance — Regulation',
+    description: 'Reviewer that checks the BRD against Turkish telecom & consumer regulation (BTK, ETK/İYS, consumer protection); flags warnings. Runs via the Batch API on submit.',
+  },
+  {
+    key: 'maturity_check',
+    label: 'Maturity Check',
+    description: 'Final reviewer that scans the whole BRD for contradictions and clarity/completeness gaps after compliance. Runs synchronously.',
   },
 ];
 

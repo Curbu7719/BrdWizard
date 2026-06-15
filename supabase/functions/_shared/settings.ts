@@ -25,6 +25,10 @@ import {
   platformLayerText,
   agentSkillText,
   channelMappingText,
+  complianceKvkkText,
+  complianceDataPrivacyText,
+  complianceRegulationText,
+  maturityCheckText,
 } from './prompts/index.ts';
 
 // ---------------------------------------------------------------------------
@@ -61,6 +65,10 @@ export interface ActivePrompts {
   platform_layer: string;
   agent_skill: string;
   channel_mapping: string;
+  compliance_kvkk: string;
+  compliance_data_privacy: string;
+  compliance_regulation: string;
+  maturity_check: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +101,10 @@ const PROMPT_DEFAULTS: ActivePrompts = {
   platform_layer: platformLayerText,
   agent_skill: agentSkillText,
   channel_mapping: channelMappingText,
+  compliance_kvkk: complianceKvkkText,
+  compliance_data_privacy: complianceDataPrivacyText,
+  compliance_regulation: complianceRegulationText,
+  maturity_check: maturityCheckText,
 };
 
 // ---------------------------------------------------------------------------
@@ -180,9 +192,13 @@ async function refreshCache(db: SupabaseClient): Promise<void> {
       for (const row of promptRows) {
         if (row.is_default) continue; // default → use embedded (latest code)
         switch (row.prompt_key) {
-          case 'platform_layer':  cachedPrompts.platform_layer  = row.content; break;
-          case 'agent_skill':     cachedPrompts.agent_skill     = row.content; break;
-          case 'channel_mapping': cachedPrompts.channel_mapping = row.content; break;
+          case 'platform_layer':          cachedPrompts.platform_layer          = row.content; break;
+          case 'agent_skill':             cachedPrompts.agent_skill             = row.content; break;
+          case 'channel_mapping':         cachedPrompts.channel_mapping         = row.content; break;
+          case 'compliance_kvkk':         cachedPrompts.compliance_kvkk         = row.content; break;
+          case 'compliance_data_privacy': cachedPrompts.compliance_data_privacy = row.content; break;
+          case 'compliance_regulation':   cachedPrompts.compliance_regulation   = row.content; break;
+          case 'maturity_check':          cachedPrompts.maturity_check          = row.content; break;
         }
       }
     } else if (promptError) {
