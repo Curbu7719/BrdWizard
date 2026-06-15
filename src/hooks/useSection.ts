@@ -102,15 +102,62 @@ export function useSections(brdId: string) {
       });
       await supabase
         .from('user_stories')
-        .update({ full_text: fullText, is_approved: true, is_edited: true, approved_at: new Date().toISOString() })
+        .update({ full_text: fullText, action: fullText, is_edited: true })
         .eq('id', storyId);
       setStories(prev =>
         prev.map(s =>
-          s.id === storyId ? { ...s, full_text: fullText, is_approved: true, is_edited: true } : s
+          s.id === storyId ? { ...s, full_text: fullText, is_edited: true } : s
         )
       );
     },
     [brdId]
+  );
+
+  const removeStory = useCallback(
+    async (storyId: string) => {
+      await supabase.from('user_stories').delete().eq('id', storyId);
+      setStories(prev => prev.filter(s => s.id !== storyId));
+    },
+    []
+  );
+
+  const addStory = useCallback(
+    async (epicId: string, fullText: string, sortOrder: number) => {
+      const { data, error } = await supabase
+        .from('user_stories')
+        .insert({
+          brd_id: brdId,
+          epic_id: epicId,
+          full_text: fullText,
+          // `action` is NOT NULL in the schema — mirror full_text (empty for a
+          // blank new story). The user types the full sentence into full_text.
+          action: fullText,
+          is_approved: false,
+          is_edited: false,
+          sort_order: sortOrder,
+        })
+        .select()
+        .single();
+      if (!error && data) {
+        setStories(prev => [...prev, data as import('../types/brd').UserStory]);
+      }
+      return { data, error };
+    },
+    [brdId]
+  );
+
+  const approveAllStories = useCallback(
+    async (epicId: string) => {
+      await supabase
+        .from('user_stories')
+        .update({ is_approved: true, approved_at: new Date().toISOString() })
+        .eq('epic_id', epicId)
+        .eq('is_approved', false);
+      setStories(prev =>
+        prev.map(s => (s.epic_id === epicId ? { ...s, is_approved: true } : s))
+      );
+    },
+    []
   );
 
   return {
@@ -124,6 +171,9 @@ export function useSections(brdId: string) {
     approveEpics,
     approveStory,
     saveEditedStory,
+    removeStory,
+    addStory,
+    approveAllStories,
     setSections,
     setEpics,
     setStories,

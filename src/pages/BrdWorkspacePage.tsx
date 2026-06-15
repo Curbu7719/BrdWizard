@@ -29,8 +29,10 @@ export default function BrdWorkspacePage() {
     load: loadSections,
     approveSection,
     approveEpics,
-    approveStory,
     saveEditedStory,
+    removeStory,
+    addStory,
+    approveAllStories,
     reopenSection,
   } = useSections(id!);
 
@@ -286,39 +288,19 @@ export default function BrdWorkspacePage() {
     void refetchBrd();
   }
 
-  // ── Per-story approval (§5.3) ───────────────────────────────────────────────
+  // ── Batch story approval (§5.3) ────────────────────────────────────────────
 
-  async function handleApproveStory(storyId: string) {
-    await approveStory(storyId);
-    void checkEpicComplete();
-  }
-
-  async function handleSaveEditedStory(storyId: string, text: string) {
-    await saveEditedStory(storyId, text);
-    void checkEpicComplete();
-  }
-
-  /** When all stories for the current epic are approved, advance to the next. */
-  async function checkEpicComplete() {
+  async function handleApproveAllStories() {
     if (!pendingStoryEpicId || !brd) return;
 
-    // Re-fetch stories to get current approved state.
-    const { data: epicStories } = await supabase
-      .from('user_stories')
-      .select('is_approved')
-      .eq('epic_id', pendingStoryEpicId);
+    await approveAllStories(pendingStoryEpicId);
 
-    if (!epicStories || epicStories.length === 0) return;
-    const allApproved = epicStories.every(s => s.is_approved);
-    if (!allApproved) return;
-
-    // All stories approved for this epic — advance active_section.
+    // Advance active_section using the same logic as the former checkEpicComplete.
     const epicMatch = activeSection.match(/^epic_(\d+)_stories$/);
     if (!epicMatch) return;
 
     const currentEpicIndex = parseInt(epicMatch[1], 10); // 1-based
 
-    // Check if there are more epics.
     const { data: allEpics } = await supabase
       .from('epics')
       .select('id, sort_order')
@@ -326,12 +308,11 @@ export default function BrdWorkspacePage() {
       .order('sort_order', { ascending: true });
 
     const totalEpics = allEpics?.length ?? 0;
-    const nextEpicIndex = currentEpicIndex + 1; // still 1-based
+    const nextEpicIndex = currentEpicIndex + 1;
 
     setPendingStoryEpicId(null);
 
     if (nextEpicIndex <= totalEpics) {
-      // Advance to next epic.
       const nextSection = `epic_${nextEpicIndex}_stories`;
       setActiveSection(nextSection);
       await supabase
@@ -342,7 +323,6 @@ export default function BrdWorkspacePage() {
       void refetchBrd();
       await send('[ready: next epic]', nextSection);
     } else {
-      // No more epics — BRD is complete.
       await supabase
         .from('brd_documents')
         .update({ status: 'complete', active_section: null, updated_at: new Date().toISOString() })
@@ -351,6 +331,30 @@ export default function BrdWorkspacePage() {
       toast({ title: 'BRD Complete! All sections and stories are approved.' });
     }
 
+    void loadSections();
+  }
+
+  async function handleEditStory(storyId: string, text: string) {
+    await saveEditedStory(storyId, text);
+    void loadSections();
+  }
+
+  async function handleRemoveStory(storyId: string) {
+    await removeStory(storyId);
+    void loadSections();
+  }
+
+  async function handleAddStory() {
+    if (!pendingStoryEpicId || !id) return;
+    const currentStories = stories.filter(s => s.epic_id === pendingStoryEpicId);
+    const nextSortOrder = currentStories.length > 0
+      ? Math.max(...currentStories.map(s => s.sort_order)) + 1
+      : 0;
+    const { error } = await addStory(pendingStoryEpicId, '', nextSortOrder);
+    if (error) {
+      toast({ title: 'Could not add story', description: error.message, variant: 'destructive' });
+      return;
+    }
     void loadSections();
   }
 
@@ -435,13 +439,14 @@ export default function BrdWorkspacePage() {
     );
   }
 
-  // Derive the epic and its title for StoryApprovalCard rendering.
+  // Derive the epic and its title for EpicStoriesReview rendering.
   const pendingEpic = pendingStoryEpicId
     ? epics.find(e => e.id === pendingStoryEpicId) ?? null
     : null;
+  // undefined when no epic pending — signals MessageList not to show the batch review.
   const pendingStories = pendingStoryEpicId
     ? stories.filter(s => s.epic_id === pendingStoryEpicId && !s.is_approved)
-    : [];
+    : undefined;
 
   // ── Draft-section button ─────────────────────────────────────────────────
   // Show only for canonical interview sections, never during streaming, and
@@ -457,7 +462,6 @@ export default function BrdWorkspacePage() {
     !showClassification &&
     pendingApprovalSectionKey === null &&
     !showEpicProposal &&
-    pendingStories.length === 0 &&
     pendingStoryEpicId === null
       ? (DRAFT_SECTION_LABELS[activeSection] ?? null)
       : null;
@@ -505,8 +509,10 @@ export default function BrdWorkspacePage() {
             onEditEpicsInChat={() => setShowEpicProposal(false)}
             pendingStories={pendingStories}
             pendingEpicTitle={pendingEpic?.title ?? ''}
-            onApproveStory={handleApproveStory}
-            onSaveEditedStory={handleSaveEditedStory}
+            onEditStory={handleEditStory}
+            onRemoveStory={handleRemoveStory}
+            onAddStory={handleAddStory}
+            onApproveAllStories={handleApproveAllStories}
             onSend={handleSend}
             onRetry={() => {
               const lastUser = [...messages].reverse().find(m => m.role === 'user');

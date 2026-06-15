@@ -57,6 +57,24 @@ Work through the following sections in order. Do not skip ahead unless the user 
    - Goal: Produce approved user stories for each epic.
    - Work through one epic at a time. Complete and get approval before moving to the next.
 
+### Single-Shot Story Generation Rule
+
+> **MANDATORY:** When the `## Current Task` block sets `section_key` to `epic_<n>_stories` (i.e., any epic's story phase), you MUST emit the COMPLETE, COMPREHENSIVE set of user stories for that epic in **ONE response** inside ONE `<stories epic_id="...">` block. Do NOT produce a partial list. Do NOT stop and ask "shall I list more?" or "should I continue?" Produce the full set immediately, in one shot.
+
+**Be thorough — find very detailed cases. This is the most important rule of this section.**
+
+> **No fixed count.** Write exactly as many user stories as the epic genuinely requires — no more, no less. Do NOT pad the list to reach a number, and do NOT cap or truncate it to stay under one. A narrow epic may need only a few stories; a rich epic may need many. Let the scope decide. The goal is COMPLETE coverage, not a target quantity. If a capability is distinct, it gets its own story; if two phrasings describe the same capability, merge them.
+
+Because every story is phrased as a positive capability ("…I should be able to **[action]**…"), you express thoroughness by **decomposing into granular stories** along these axes wherever each is genuinely meaningful for this epic:
+
+- **Granular actions, not broad goals.** Break each capability into its smallest meaningful operations and write one story per operation. (E.g. instead of one "view invoices" story: view the current invoice; view invoice history; view a specific past invoice by date; view line-item / charge breakdown; view the invoice PDF; download / export the invoice; view payment status; view due date and outstanding amount; resend / email the invoice; filter invoices by date range; search invoices by amount or reference.)
+- **Each meaningful data state as its own story.** Reflect how behaviour differs across states — e.g. overdue vs. paid vs. partially-paid vs. disputed invoice; active vs. suspended vs. terminated subscriber; prepaid vs. postpaid; first invoice vs. historical. Write a distinct story for the states that matter.
+- **Every relevant persona.** store employee, store manager, subscriber, call center agent, back-office user, dealer, courier, fraud/finance analyst, system/batch process — include each role that genuinely touches this epic, and give each its own relevant stories.
+- **Each impacted channel.** When an action is available on more than one channel from the BRD classification, write a separate story per channel — do not collapse channels.
+- **Supporting capabilities the epic implies.** audit/history of who viewed/changed what (as a back-office or compliance story), permission/role management for the feature, notifications/alerts, reporting/export, and configuration — wherever they fit the epic.
+
+Keep every story strictly in the required format below. Cover the breadth above BEFORE you stop. After the `<stories>` block, add exactly one short sentence telling the user they can add, remove, or edit stories and then approve.
+
 ---
 
 ## Interview Style Rules

@@ -30,11 +30,13 @@ interface ChatPanelProps {
   onApproveAllEpics?: () => void;
   onEditEpicsInChat?: () => void;
 
-  // ── Story approval ────────────────────────────────────────────────────────
+  // ── Story approval (batch) ────────────────────────────────────────────────
   pendingStories?: UserStory[];
   pendingEpicTitle?: string;
-  onApproveStory?: (storyId: string) => void;
-  onSaveEditedStory?: (storyId: string, text: string) => void;
+  onEditStory?: (storyId: string, text: string) => void;
+  onRemoveStory?: (storyId: string) => void;
+  onAddStory?: () => void;
+  onApproveAllStories?: () => void;
 
   // ── Draft section trigger ─────────────────────────────────────────────────
   /** Friendly label for the active section (e.g. "Background"). When provided,
@@ -64,8 +66,10 @@ export function ChatPanel({
   onEditEpicsInChat,
   pendingStories,
   pendingEpicTitle,
-  onApproveStory,
-  onSaveEditedStory,
+  onEditStory,
+  onRemoveStory,
+  onAddStory,
+  onApproveAllStories,
   draftButtonLabel,
   onDraftSection,
 }: ChatPanelProps) {
@@ -92,8 +96,10 @@ export function ChatPanel({
         onEditEpicsInChat={onEditEpicsInChat}
         pendingStories={pendingStories}
         pendingEpicTitle={pendingEpicTitle}
-        onApproveStory={onApproveStory}
-        onSaveEditedStory={onSaveEditedStory}
+        onEditStory={onEditStory}
+        onRemoveStory={onRemoveStory}
+        onAddStory={onAddStory}
+        onApproveAllStories={onApproveAllStories}
       />
       <ChatInput
         onSend={onSend}

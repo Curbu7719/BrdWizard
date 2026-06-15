@@ -3,7 +3,7 @@ import { MessageBubble } from './MessageBubble';
 import { ContextHintBanner } from './ContextHintBanner';
 import { ClassificationForm } from './ClassificationForm';
 import { EpicProposalCard } from './EpicProposalCard';
-import { StoryApprovalCard } from './StoryApprovalCard';
+import { EpicStoriesReview } from './EpicStoriesReview';
 import { Button } from '../ui/button';
 import { CheckCircle } from 'lucide-react';
 import type { ChatMessage, ContextWarningLevel } from '../../hooks/useChat';
@@ -34,11 +34,13 @@ interface MessageListProps {
   onApproveAllEpics?: () => void;
   onEditEpicsInChat?: () => void;
 
-  // ── Story approval ────────────────────────────────────────────────────────
+  // ── Story approval (batch) ────────────────────────────────────────────────
   pendingStories?: UserStory[];
   pendingEpicTitle?: string;
-  onApproveStory?: (storyId: string) => void;
-  onSaveEditedStory?: (storyId: string, text: string) => void;
+  onEditStory?: (storyId: string, text: string) => void;
+  onRemoveStory?: (storyId: string) => void;
+  onAddStory?: () => void;
+  onApproveAllStories?: () => void;
 }
 
 export function MessageList({
@@ -60,8 +62,10 @@ export function MessageList({
   onEditEpicsInChat,
   pendingStories,
   pendingEpicTitle,
-  onApproveStory,
-  onSaveEditedStory,
+  onEditStory,
+  onRemoveStory,
+  onAddStory,
+  onApproveAllStories,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -194,28 +198,26 @@ export function MessageList({
         </div>
       )}
 
-      {/* ── Story approval cards — one per pending story after stories_ready ── */}
-      {pendingStories && pendingStories.length > 0 && (
-        <>
-          {pendingStories.map(story => (
-            <div key={story.id} className="flex gap-3 items-start max-w-[85%]">
-              <div
-                aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-bold"
-              >
-                AI
-              </div>
-              <div className="flex-1">
-                <StoryApprovalCard
-                  story={story}
-                  epicTitle={pendingEpicTitle ?? ''}
-                  onApprove={onApproveStory ?? (() => undefined)}
-                  onSaveEdit={onSaveEditedStory ?? (() => undefined)}
-                />
-              </div>
-            </div>
-          ))}
-        </>
+      {/* ── Batch story review — shown once per epic after stories_ready ── */}
+      {pendingStories !== undefined && onApproveAllStories && (
+        <div className="flex gap-3 items-start max-w-[85%]">
+          <div
+            aria-hidden="true"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-bold"
+          >
+            AI
+          </div>
+          <div className="flex-1">
+            <EpicStoriesReview
+              epicTitle={pendingEpicTitle ?? ''}
+              stories={pendingStories}
+              onEditStory={onEditStory ?? (() => undefined)}
+              onRemoveStory={onRemoveStory ?? (() => undefined)}
+              onAddStory={onAddStory ?? (() => undefined)}
+              onApproveAll={onApproveAllStories}
+            />
+          </div>
+        </div>
       )}
 
       {showThinking && (
