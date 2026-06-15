@@ -1,0 +1,61 @@
+Telecom operatörü için bir BRD wizard hazırlamak istiyorum.
+BRD wizardda webden açılabilen bir arayüzü olacak. 30 user concurrent kullanabilir olmalı.
+Kullanıcı girerken username password ile girmeli.ileride şirket ldapına bağlayacağım.
+
+Girdiğinde ne ile ilgili BRD yazmak istediğini bir chat ekranından girmeli. Bir Word dokumanı da ekleyebilir. 
+Bu girilene istinaden uygulama sorularla konuyu netleştirmeli ve epic userstorylere bölmeli.
+
+İlk girişte konuyu netleştirmek adına şunları seçebilir veya boş geçebilir. Şu an sadece CBU için BRD yazımı ekleyeceğiz.
+
+Prepaid / Postpaid
+Mobine / Fixed
+New Product or Journey / Change on Existing Product or Journey
+Possible impacted channels listesinden seçecek (List : Siebel / SOT / FAST / C2D / IVR / TOBI / VF Yanımda(app) / Web ) Liste eklenebilir olmalı admin tarafından. Birden fazla kanal seçebilir.
+
+Arayüz tamamen İngilizce olacak. 
+Bu bilgileri girince solda bir chat ekranı olmalı sağda onaylanan kısımlar gösterilmeli.
+
+tüm onaylananlar sonra generate BRD diyerek dokuman exportu alınabilmeli. (Word)
+dolması gereken başlıklar 
+Background
+Neden bu projeye ihtiyaç var? Backgroundu ne?
+Objective 
+Ne yapılmak isteniyor detaylı yazın.
+
+Bu girilenlere göre AI olası epicleri sıralar. Onay alır.
+Sonra sırayla epic bazında user story üretir ve kullanıcı onayı ister. Kullanıcı isterse userstoryi başka türlü yazabilir. O yazdığı şekilde alır.
+ Her epic bitiminde sağdaki panelde gösterir ve onay ister. Onaylanırsa kaydeder. Architecturea uygun DB ye muhtemelen.
+
+User story formatı çok basit olmalı. 
+Mesela:
+Mağaza çalışanı olarak eğer yetkim varsa SOT kanalında abonenin faturasını görüntelebilmeliyim.
+
+Skill için kullanılacak :
+
+You are senior business analyst agent for CBU. 
+
+Tüm mağaza/bayi konuları için : SOT kanalı
+App/ mobil uygulama için VF Yanımda
+Chatbot için TOBI
+Kuryeli işlemler için C2D
+Müşteri hizemetleri için FAST kanalı
+
+şeklinde kullanılabilir. Bu liste md dosyasından değiştirilebilmeli.
+
+
+Bu chat kısmında her epicten sonra context windowa bakılır ve eğer %60 lardaysa summarization ve clear yapılır ve devam edilir.
+
+Chatte streeming olmalı. 
+
+Kullanıcı istedi zaman çalışmayı bitirebilir ve dokuman oluşturma safhasına geçebilir.
+
+Bu oluşturduğu Brd ler tamamlanmamış olabilir. bir sonraki session geldiğinde kaldığı yerden devam edebilmeli.
+
+Her user kendi oluşturduğu BRD yi görebilir. İsterse public yapabilir. Private seçerse sadece kendi görür. 
+
+
+
+
+
+
+

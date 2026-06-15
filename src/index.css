@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — from docs/UI-UX-SPEC.md
+ * Enterprise telecom palette (Vodafone red brand), WCAG 2.1 AA.
+ * Values are HSL channels (no hsl() wrapper) so Tailwind can compose opacity.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 100%; /* #FFFFFF page surface */
+    --foreground: 240 27% 14%; /* #1A1A2E near-black text */
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 27% 14%;
+
+    --primary: 0 100% 45%; /* #E60000 Vodafone red */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 16% 96%; /* #F4F5F7 cool gray panel */
+    --secondary-foreground: 240 27% 14%;
+
+    --muted: 220 16% 96%;
+    --muted-foreground: 226 14% 42%; /* #5E6278 secondary text */
+
+    --accent: 211 80% 42%; /* #1565C0 corporate blue (system/in-progress) */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 6 59% 49%; /* #C0392B alert red */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 63% 32%; /* #1E8449 forest green (approved) */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 39 87% 38%; /* #B7770D amber (context warning) */
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 0 100% 45%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
