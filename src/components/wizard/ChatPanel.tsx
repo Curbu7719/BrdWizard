@@ -38,6 +38,13 @@ interface ChatPanelProps {
   onAddStory?: () => void;
   onApproveAllStories?: () => void;
 
+  // ── Post-approval continue gate ───────────────────────────────────────────
+  /** True when stories are approved and agent may ask clarifications before advancing. */
+  awaitingContinue?: boolean;
+  /** True when the current epic is the last one (button becomes "Finish BRD"). */
+  isLastEpic?: boolean;
+  onContinueNextEpic?: () => void;
+
   // ── Draft section trigger ─────────────────────────────────────────────────
   /** Friendly label for the active section (e.g. "Background"). When provided,
    *  the "Draft <label> for approval" button is shown above the chat input. */
@@ -70,6 +77,9 @@ export function ChatPanel({
   onRemoveStory,
   onAddStory,
   onApproveAllStories,
+  awaitingContinue,
+  isLastEpic,
+  onContinueNextEpic,
   draftButtonLabel,
   onDraftSection,
 }: ChatPanelProps) {
@@ -100,6 +110,9 @@ export function ChatPanel({
         onRemoveStory={onRemoveStory}
         onAddStory={onAddStory}
         onApproveAllStories={onApproveAllStories}
+        awaitingContinue={awaitingContinue}
+        isLastEpic={isLastEpic}
+        onContinueNextEpic={onContinueNextEpic}
       />
       <ChatInput
         onSend={onSend}

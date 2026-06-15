@@ -21,7 +21,7 @@ function nextId() {
 
 // Synthetic continuation turns (e.g. "[approved]", "[ready: next epic]") are sent
 // to the backend to advance the agent but must NOT show as user chat bubbles.
-const CONTROL_TOKEN_RE = /^\[(approved|ready|draft-section)\b.*\]$/i;
+const CONTROL_TOKEN_RE = /^\[(approved|ready|draft-section|stories-approved)\b.*\]$/i;
 
 interface UseChatOptions {
   brdId: string;

@@ -272,7 +272,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const streamIter = llm.streamChat(messages, {
           stream: true,
           systemPrompt,
-          maxTokens: 4096,
+          // Large cap so a full epic's detailed user-story set (headline +
+          // acceptance criteria, possibly Turkish) fits without truncating the
+          // <stories> block. Driven by settings (ai.stream_max_tokens).
+          maxTokens: settings.ai_stream_max_tokens,
         });
 
         for await (const event of streamIter) {

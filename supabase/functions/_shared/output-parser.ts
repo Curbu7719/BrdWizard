@@ -122,9 +122,16 @@ export function parseAgentOutput(text: string): ParseResult {
 
   // ── 3. User stories ────────────────────────────────────────────────────────
   //    <stories epic_id="uuid"><story persona="..." channel="..." sort_order="N">text</story></stories>
-  const storiesBlock = text.match(
+  // Prefer a fully-closed block; fall back to an open-ended capture if the
+  // response was truncated (missing </stories>). The per-<story> loop only
+  // accepts complete <story>…</story> elements, so an incomplete trailing
+  // story is simply ignored.
+  let storiesBlock = text.match(
     /<stories\s+epic_id="([^"]+)">([\s\S]*?)<\/stories>/,
   );
+  if (!storiesBlock) {
+    storiesBlock = text.match(/<stories\s+epic_id="([^"]+)">([\s\S]*)$/);
+  }
   if (storiesBlock) {
     const epicId = storiesBlock[1];
     // Allow nested child tags inside <story> (headline + criteria), so use a

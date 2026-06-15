@@ -69,7 +69,7 @@ export interface ActivePrompts {
 
 const DEFAULTS: AppSettings = {
   ai_model_id: 'claude-sonnet-4-6',
-  ai_stream_max_tokens: 4096,
+  ai_stream_max_tokens: 16000,
   ai_complete_max_tokens: 1024,
   ai_temperature: null,
   context_window_tokens: 200_000,

@@ -5,7 +5,7 @@ import { ClassificationForm } from './ClassificationForm';
 import { EpicProposalCard } from './EpicProposalCard';
 import { EpicStoriesReview } from './EpicStoriesReview';
 import { Button } from '../ui/button';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ArrowRight, Flag } from 'lucide-react';
 import type { ChatMessage, ContextWarningLevel } from '../../hooks/useChat';
 import type { Epic, UserStory } from '../../types/brd';
 import type { ClassificationData } from './ClassificationForm';
@@ -41,6 +41,13 @@ interface MessageListProps {
   onRemoveStory?: (storyId: string) => void;
   onAddStory?: () => void;
   onApproveAllStories?: () => void;
+
+  // ── Post-approval continue gate ───────────────────────────────────────────
+  /** True when stories are approved and agent may ask clarifications before advancing. */
+  awaitingContinue?: boolean;
+  /** True when the current epic is the last one (button becomes "Finish BRD"). */
+  isLastEpic?: boolean;
+  onContinueNextEpic?: () => void;
 }
 
 export function MessageList({
@@ -66,6 +73,9 @@ export function MessageList({
   onRemoveStory,
   onAddStory,
   onApproveAllStories,
+  awaitingContinue,
+  isLastEpic,
+  onContinueNextEpic,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -87,7 +97,7 @@ export function MessageList({
       const el = listRef.current;
       if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages, streaming, showClassification, showEpicProposal, pendingStories?.length]);
+  }, [messages, streaming, showClassification, showEpicProposal, pendingStories?.length, awaitingContinue]);
 
   // Show "Thinking..." while streaming with empty assistant message
   const showThinking =
@@ -216,6 +226,45 @@ export function MessageList({
               onAddStory={onAddStory ?? (() => undefined)}
               onApproveAll={onApproveAllStories}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── Continue gate — shown after stories are approved, before advancing ── */}
+      {awaitingContinue && onContinueNextEpic && (
+        <div className="flex gap-3 items-start max-w-[85%]">
+          <div
+            aria-hidden="true"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-bold"
+          >
+            AI
+          </div>
+          <div
+            role="region"
+            aria-label={isLastEpic ? 'Finish BRD' : 'Continue to next epic'}
+            className="rounded-lg border border-border bg-secondary/50 px-4 py-3 space-y-3 flex-1"
+          >
+            <p className="text-sm text-foreground">
+              Stories approved. Ask any clarifications in the chat above. When you&apos;re ready:
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={onContinueNextEpic}
+              >
+                {isLastEpic ? (
+                  <>
+                    <Flag className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+                    Finish BRD
+                  </>
+                ) : (
+                  <>
+                    <ArrowRight className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+                    Continue to next epic
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

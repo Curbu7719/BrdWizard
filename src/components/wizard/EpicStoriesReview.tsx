@@ -175,7 +175,7 @@ export function EpicStoriesReview({
           className="ml-auto"
         >
           <CheckCircle className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-          Approve all stories ({stories.length}) &amp; continue
+          Approve all stories ({stories.length})
         </Button>
       </div>
     </div>

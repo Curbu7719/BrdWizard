@@ -66,6 +66,8 @@ export default function BrdWorkspacePage() {
   const [showEpicProposal, setShowEpicProposal] = useState(false);
   /** epic_id for which stories are pending per-story approval */
   const [pendingStoryEpicId, setPendingStoryEpicId] = useState<string | null>(null);
+  /** epic_id whose stories were just approved — agent may ask clarifications before we continue */
+  const [epicAwaitingContinue, setEpicAwaitingContinue] = useState<string | null>(null);
 
   // ── SSE event callbacks ─────────────────────────────────────────────────────
 
@@ -82,6 +84,8 @@ export default function BrdWorkspacePage() {
   const handleStoriesReady = useCallback((epicId: string) => {
     void loadSections();
     setPendingStoryEpicId(epicId);
+    // Starting review for a new epic — clear any previous continue gate.
+    setEpicAwaitingContinue(null);
   }, [loadSections]);
 
   // ── Context event ───────────────────────────────────────────────────────────
@@ -288,14 +292,34 @@ export default function BrdWorkspacePage() {
     void refetchBrd();
   }
 
-  // ── Batch story approval (§5.3) ────────────────────────────────────────────
+  // ── Step 1: Approve stories (§5.3) ────────────────────────────────────────
+  // Marks stories approved in DB and lets the agent ask clarifying questions.
+  // Does NOT advance active_section — that happens in handleContinueNextEpic.
 
   async function handleApproveAllStories() {
     if (!pendingStoryEpicId || !brd) return;
 
     await approveAllStories(pendingStoryEpicId);
 
-    // Advance active_section using the same logic as the former checkEpicComplete.
+    const approvedEpicId = pendingStoryEpicId;
+    // Hide the EpicStoriesReview card; show the "Continue" action card instead.
+    setPendingStoryEpicId(null);
+    setEpicAwaitingContinue(approvedEpicId);
+
+    void loadSections();
+
+    // Let the agent know stories were approved so it can ask clarifications.
+    await send('[stories-approved]', activeSection);
+    void loadSections();
+    void refetchBrd();
+  }
+
+  // ── Step 2: Continue to next epic (§5.3) ──────────────────────────────────
+  // Advances active_section after the user finishes clarification chat.
+
+  async function handleContinueNextEpic() {
+    if (!brd) return;
+
     const epicMatch = activeSection.match(/^epic_(\d+)_stories$/);
     if (!epicMatch) return;
 
@@ -310,7 +334,7 @@ export default function BrdWorkspacePage() {
     const totalEpics = allEpics?.length ?? 0;
     const nextEpicIndex = currentEpicIndex + 1;
 
-    setPendingStoryEpicId(null);
+    setEpicAwaitingContinue(null);
 
     if (nextEpicIndex <= totalEpics) {
       const nextSection = `epic_${nextEpicIndex}_stories`;
@@ -448,6 +472,11 @@ export default function BrdWorkspacePage() {
     ? stories.filter(s => s.epic_id === pendingStoryEpicId && !s.is_approved)
     : undefined;
 
+  // Determine whether the current epic is the last one, used for "Finish BRD" vs "Continue to next epic" label.
+  const epicIndexMatch = activeSection.match(/^epic_(\d+)_stories$/);
+  const currentEpicIndex = epicIndexMatch ? parseInt(epicIndexMatch[1], 10) : 0;
+  const isLastEpic = currentEpicIndex > 0 && currentEpicIndex >= epics.length;
+
   // ── Draft-section button ─────────────────────────────────────────────────
   // Show only for canonical interview sections, never during streaming, and
   // never when another approval UI is already visible.
@@ -513,6 +542,9 @@ export default function BrdWorkspacePage() {
             onRemoveStory={handleRemoveStory}
             onAddStory={handleAddStory}
             onApproveAllStories={handleApproveAllStories}
+            awaitingContinue={epicAwaitingContinue !== null && !streaming}
+            isLastEpic={isLastEpic}
+            onContinueNextEpic={handleContinueNextEpic}
             onSend={handleSend}
             onRetry={() => {
               const lastUser = [...messages].reverse().find(m => m.role === 'user');
