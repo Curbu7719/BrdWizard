@@ -72,7 +72,7 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
             size="sm"
             variant="outline"
             className="mt-2 block mx-auto"
-            onClick={() => window.location.href = '/'}
+            onClick={() => { window.location.hash = '#/'; }}
           >
             Go to Dashboard
           </Button>
