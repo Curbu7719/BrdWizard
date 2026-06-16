@@ -57,6 +57,27 @@ export function ApprovedPanel({
 }: ApprovedPanelProps) {
   const generalWarnings = warnings.filter(w => w.target_type === 'brd');
   const openCount = warnings.filter(w => w.status === 'open').length;
+
+  // Right-panel order: Background, Objective, [Expected Value], Epics, User
+  // Stories, [Notes], [Reports]. Expected Value sits right after Objective, so we
+  // split the section list into the intro sections and everything after.
+  const INTRO_KEYS = ['background', 'objective'];
+  const introSections = sections.filter(s => INTRO_KEYS.includes(s.section_key));
+  const restSections = sections.filter(s => !INTRO_KEYS.includes(s.section_key));
+  const renderSection = (section: BrdSection) => (
+    <SectionAccordion
+      key={section.id}
+      section={section}
+      epics={epics}
+      stories={stories}
+      onRevise={onRevise}
+      onInlineSave={onInlineSaveSection}
+      onEditStory={onEditStory}
+      warnings={warnings}
+      onAcknowledgeWarning={onAcknowledgeWarning}
+    />
+  );
+
   return (
     <div className="flex flex-col h-full bg-secondary/50 overflow-hidden">
       {/* Header */}
@@ -81,19 +102,21 @@ export function ApprovedPanel({
           </div>
         )}
 
-        {!loading && sections.map(section => (
-          <SectionAccordion
-            key={section.id}
-            section={section}
-            epics={epics}
-            stories={stories}
-            onRevise={onRevise}
-            onInlineSave={onInlineSaveSection}
-            onEditStory={onEditStory}
-            warnings={warnings}
-            onAcknowledgeWarning={onAcknowledgeWarning}
+        {/* Background, Objective */}
+        {!loading && introSections.map(renderSection)}
+
+        {/* Expected Value — directly after Objective */}
+        {!loading && (
+          <BrdInputCard
+            label="Expected Value"
+            placeholder="What business value or outcome do you expect from this BRD?"
+            value={expectedValue}
+            onSave={text => onSaveField('expected_value', text)}
           />
-        ))}
+        )}
+
+        {/* Epics, User Stories (and any later sections) */}
+        {!loading && restSections.map(renderSection)}
 
         {/* Compliance & maturity review */}
         {!loading && (
@@ -109,29 +132,23 @@ export function ApprovedPanel({
           />
         )}
 
-        {/* User-authored inputs */}
+        {/* User-authored inputs — Notes, then Reports (last) */}
         {!loading && (
           <div className="space-y-3 pt-2">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Your Inputs
             </h2>
             <BrdInputCard
-              label="Expected Value"
-              placeholder="What business value or outcome do you expect from this BRD?"
-              value={expectedValue}
-              onSave={text => onSaveField('expected_value', text)}
+              label="Notes"
+              placeholder="Any notes you want to attach to this BRD…"
+              value={notes}
+              onSave={text => onSaveField('notes', text)}
             />
             <BrdInputCard
               label="Reports"
               placeholder="Reporting requirements — what reports are needed, fields, frequency, recipients…"
               value={reports}
               onSave={text => onSaveField('reports', text)}
-            />
-            <BrdInputCard
-              label="Notes"
-              placeholder="Any notes you want to attach to this BRD…"
-              value={notes}
-              onSave={text => onSaveField('notes', text)}
             />
           </div>
         )}

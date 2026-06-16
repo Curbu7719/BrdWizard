@@ -23,6 +23,7 @@ interface ClassificationData {
   channels: string[];
   background: string;
   objective: string;
+  expectedValue: string;
   sourceSummary?: string;
 }
 
@@ -115,11 +116,13 @@ export function ClassificationForm({ initialTitle = '', onSubmit, disabled }: Cl
   const [channels, setChannels] = useState<string[]>([]);
   const [background, setBackground] = useState('');
   const [objective, setObjective] = useState('');
+  const [expectedValue, setExpectedValue] = useState('');
 
   // Validation errors
   const [titleError, setTitleError] = useState(false);
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
   const [objectiveError, setObjectiveError] = useState<string | null>(null);
+  const [expectedValueError, setExpectedValueError] = useState<string | null>(null);
 
   // Document analysis state
   const [fileError, setFileError] = useState<string | null>(null);
@@ -237,6 +240,14 @@ export function ClassificationForm({ initialTitle = '', onSubmit, disabled }: Cl
     setObjectiveError(objErr);
     if (objErr) hasError = true;
 
+    // Expected Value is optional — only enforce the upper bound when provided.
+    const evErr =
+      expectedValue.trim().length > INPUT_LIMITS.expectedValue.max
+        ? `Expected Value is too long (maximum ${INPUT_LIMITS.expectedValue.max} characters).`
+        : null;
+    setExpectedValueError(evErr);
+    if (evErr) hasError = true;
+
     if (hasError) return;
 
     onSubmit({
@@ -247,6 +258,7 @@ export function ClassificationForm({ initialTitle = '', onSubmit, disabled }: Cl
       channels,
       background: background.trim(),
       objective: objective.trim(),
+      expectedValue: expectedValue.trim(),
       ...(sourceSummary ? { sourceSummary } : {}),
     });
   }
@@ -472,6 +484,35 @@ export function ClassificationForm({ initialTitle = '', onSubmit, disabled }: Cl
               {objective.length.toLocaleString()} / {INPUT_LIMITS.objective.max.toLocaleString()}
               {objective.trim().length > 0 && objective.trim().length < INPUT_LIMITS.objective.min
                 ? ` (min ${INPUT_LIMITS.objective.min})` : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Expected Value (optional) */}
+        <div className="space-y-1">
+          <Label htmlFor="brd-expected-value">
+            Expected Value <span className="font-normal text-muted-foreground">(optional)</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">What business value or outcome do you expect from this project?</p>
+          <Textarea
+            id="brd-expected-value"
+            placeholder="e.g. Reduce billing disputes by 30%, improve NPS, unlock new revenue…"
+            value={expectedValue}
+            onChange={e => { setExpectedValue(e.target.value); setExpectedValueError(null); }}
+            disabled={isFormDisabled}
+            rows={3}
+            maxLength={INPUT_LIMITS.expectedValue.max}
+            aria-describedby={expectedValueError ? 'expected-value-error' : undefined}
+          />
+          <div className="flex items-center justify-between mt-1">
+            {expectedValueError ? (
+              <p id="expected-value-error" className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                {expectedValueError}
+              </p>
+            ) : <span />}
+            <span className="text-xs text-muted-foreground">
+              {expectedValue.length.toLocaleString()} / {INPUT_LIMITS.expectedValue.max.toLocaleString()}
             </span>
           </div>
         </div>

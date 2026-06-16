@@ -13,6 +13,9 @@
 export const INPUT_LIMITS = {
   background: { min: 40, max: 3000 },
   objective: { min: 40, max: 3000 },
+  // Expected Value is optional (a readiness-score bonus, not required to start),
+  // so it has no minimum — only an upper bound.
+  expectedValue: { min: 0, max: 1000 },
   chatMessage: { min: 1, max: 4000 },
 } as const;
 

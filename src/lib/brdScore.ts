@@ -78,9 +78,10 @@ export function computeBrdScore(args: {
   }
   const reviewed = brd.review_stage === 'maturity_done';
   let pillar3 = Math.max(0, 40 - deduction);
-  // Never reviewed → findings are unknown; cap this pillar at 70% to reward
-  // actually running the compliance + maturity review.
-  if (!reviewed) pillar3 = Math.min(pillar3, 28);
+  // Never reviewed → compliance findings are unknown, so withhold most of this
+  // pillar to reward actually running the review. Capped hard (14/40) so a full
+  // but unreviewed BRD can't reach a confident "ready" score on completeness alone.
+  if (!reviewed) pillar3 = Math.min(pillar3, 14);
 
   const total = Math.round(Math.max(0, Math.min(100, pillar1 + pillar2 + pillar3)));
 
