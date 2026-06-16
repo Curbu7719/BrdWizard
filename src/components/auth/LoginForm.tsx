@@ -30,7 +30,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         <Input
           id="email"
           type="email"
-          placeholder="user@vodafone.com.tr"
+          placeholder="you@example.com"
           autoComplete="email"
           value={email}
           onChange={e => setEmail(e.target.value)}

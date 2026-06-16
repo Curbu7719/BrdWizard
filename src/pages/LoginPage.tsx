@@ -32,7 +32,6 @@ export default function LoginPage() {
             B
           </div>
           <h1 className="text-2xl font-bold text-foreground">BRD Wizard</h1>
-          <p className="text-sm text-muted-foreground">Vodafone Turkey CBU</p>
         </div>
 
         {/* Card */}
@@ -41,7 +40,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Internal tool — Vodafone Turkey, CBU Team
+          Internal tool
         </p>
       </div>
     </main>
