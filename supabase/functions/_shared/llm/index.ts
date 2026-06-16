@@ -5,8 +5,12 @@
  * can be swapped without touching individual functions.
  *
  * Supported values for LLM_PROVIDER:
- *   'anthropic' (default) — AnthropicProvider using claude-sonnet-4-6
+ *   'anthropic' (default) — AnthropicProvider using the admin-selected model
  *   'copilot'             — CopilotProvider (stub; not yet implemented)
+ *
+ * The active model is admin-selectable via the `ai.model_id` setting; callers that
+ * load settings pass it as `modelId`. A provider-side error (5xx/429) fails over to
+ * the optional `ANTHROPIC_FALLBACK_MODEL` env secret (no failover when unset).
  */
 
 import { AnthropicProvider } from './anthropic-provider.ts';
@@ -14,7 +18,14 @@ import { AnthropicProvider } from './anthropic-provider.ts';
 // import { CopilotProvider } from './copilot-provider.ts';
 import type { LLMProvider } from './types.ts';
 
-export function createLLMProvider(): LLMProvider {
+/** Default model when no admin selection is available (matches DEFAULTS in settings.ts). */
+const DEFAULT_MODEL_ID = 'claude-sonnet-4-6';
+
+/**
+ * @param modelId  The admin-selected model (`settings.ai_model_id`). Falls back to
+ *                 DEFAULT_MODEL_ID when not provided (e.g. settings unavailable).
+ */
+export function createLLMProvider(modelId?: string): LLMProvider {
   const provider = Deno.env.get('LLM_PROVIDER') ?? 'anthropic';
 
   if (provider === 'anthropic') {
@@ -24,8 +35,9 @@ export function createLLMProvider(): LLMProvider {
         'ANTHROPIC_API_KEY env var is required when LLM_PROVIDER=anthropic',
       );
     }
-    // Model id is fixed to claude-sonnet-4-6 per project spec (ARCHITECTURE.md §4.2).
-    return new AnthropicProvider(apiKey, 'claude-sonnet-4-6');
+    // Fallback model for provider-side failover — ops-configured secret, optional.
+    const fallbackModelId = Deno.env.get('ANTHROPIC_FALLBACK_MODEL') ?? null;
+    return new AnthropicProvider(apiKey, modelId ?? DEFAULT_MODEL_ID, fallbackModelId);
   }
 
   // Copilot branch — uncomment when CopilotProvider is implemented.

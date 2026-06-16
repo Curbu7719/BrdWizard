@@ -244,8 +244,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     handoffTokens: settings.context_threshold_handoff_tokens,
   };
 
-  // Create LLM provider.
-  const llm = createLLMProvider();
+  // Create LLM provider with the admin-selected model.
+  const llm = createLLMProvider(settings.ai_model_id);
 
   // Determine next turn_index by finding the current max.
   const { data: lastTurnRow } = await db

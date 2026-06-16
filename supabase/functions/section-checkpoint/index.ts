@@ -34,6 +34,7 @@
 import { corsPreflightResponse, withCors } from '../_shared/cors.ts';
 import { verifyAuth, getServiceClient } from '../_shared/supabase-client.ts';
 import { createLLMProvider } from '../_shared/llm/index.ts';
+import { getSettings } from '../_shared/settings.ts';
 
 /** Section order for determining the next section after approval. */
 const SECTION_ORDER = ['background', 'objective', 'epics_overview'];
@@ -128,7 +129,8 @@ async function handleApprove(req: Request, userId: string): Promise<Response> {
   }
 
   // Step 2: Generate one-line summary via LLM (non-streaming).
-  const llm = createLLMProvider();
+  const settings = await getSettings(db);
+  const llm = createLLMProvider(settings.ai_model_id);
 
   let summaryLine = `${sectionTitle} — APPROVED ✓`;
   try {

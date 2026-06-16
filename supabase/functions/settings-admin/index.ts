@@ -53,6 +53,23 @@ const PHASE1_KEYS = new Set([
   'context.max_turns_per_section',
 ]);
 
+// AI settings (model selection). Kept separate from PHASE1_KEYS so the threshold
+// ordering logic below never touches them.
+const AI_KEYS = new Set([
+  'ai.model_id',
+]);
+
+// All app_settings keys this endpoint is allowed to read/write.
+const ALLOWED_SETTING_KEYS = new Set([...PHASE1_KEYS, ...AI_KEYS]);
+
+// Curated list of selectable Claude models. Keep in sync with the dropdown in
+// the admin SettingsPanel (src/components/admin/SettingsPanel.tsx).
+const VALID_MODEL_IDS = new Set([
+  'claude-opus-4-8',
+  'claude-sonnet-4-6',
+  'claude-haiku-4-5-20251001',
+]);
+
 const VALID_PROMPT_KEYS = new Set([
   'platform_layer',
   'agent_skill',
@@ -90,8 +107,13 @@ function validateSettingValue(key: string, value: unknown): string | null {
         return 'max_turns_per_section must be an integer between 5 and 50';
       break;
     }
+    case 'ai.model_id': {
+      if (typeof value !== 'string' || !VALID_MODEL_IDS.has(value))
+        return `ai.model_id must be one of: ${[...VALID_MODEL_IDS].join(', ')}`;
+      break;
+    }
     default:
-      return `Unknown or non-Phase-1 key: "${key}". Supported keys: ${[...PHASE1_KEYS].join(', ')}`;
+      return `Unknown or unsupported key: "${key}". Supported keys: ${[...ALLOWED_SETTING_KEYS].join(', ')}`;
   }
   return null;
 }
@@ -148,11 +170,11 @@ async function handleGet(userId: string): Promise<Response> {
 
   const db = getServiceClient();
 
-  // Load Phase-1 app_settings rows.
+  // Load the editable app_settings rows (context/turn + AI model).
   const { data: settingRows, error: settingsError } = await db
     .from('app_settings')
     .select('key, value, description, updated_at, updated_by')
-    .in('key', [...PHASE1_KEYS]);
+    .in('key', [...ALLOWED_SETTING_KEYS]);
 
   if (settingsError) {
     console.error('[settings-admin] GET settings error:', settingsError);
@@ -239,8 +261,8 @@ async function handlePatchSetting(req: Request, userId: string): Promise<Respons
   if (!key || value === undefined)
     return err('key and value are required');
 
-  if (!PHASE1_KEYS.has(key))
-    return err(`Unknown or non-Phase-1 key: "${key}"`);
+  if (!ALLOWED_SETTING_KEYS.has(key))
+    return err(`Unknown or unsupported key: "${key}"`);
 
   // Individual validation.
   const valError = validateSettingValue(key, value);
@@ -327,8 +349,8 @@ async function handlePatchSettingsBulk(req: Request, userId: string): Promise<Re
   for (const u of updates) {
     if (!u || typeof u.key !== 'string' || u.value === undefined)
       return err('each update needs a key and a value');
-    if (!PHASE1_KEYS.has(u.key))
-      return err(`Unknown or non-Phase-1 key: "${u.key}"`);
+    if (!ALLOWED_SETTING_KEYS.has(u.key))
+      return err(`Unknown or unsupported key: "${u.key}"`);
     const ve = validateSettingValue(u.key, u.value);
     if (ve) return err(ve);
   }

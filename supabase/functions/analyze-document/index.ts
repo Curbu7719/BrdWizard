@@ -36,8 +36,9 @@
  */
 
 import { corsPreflightResponse, withCors } from '../_shared/cors.ts';
-import { verifyAuth } from '../_shared/supabase-client.ts';
+import { verifyAuth, getServiceClient } from '../_shared/supabase-client.ts';
 import { createLLMProvider } from '../_shared/llm/index.ts';
+import { getSettings } from '../_shared/settings.ts';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -299,8 +300,10 @@ async function handlePost(req: Request): Promise<Response> {
     );
   }
 
-  // Route to the appropriate extraction path.
-  const llm = createLLMProvider();
+  // Route to the appropriate extraction path. Use the admin-selected model
+  // (cached settings lookup; falls back to the default if unavailable).
+  const settings = await getSettings(getServiceClient());
+  const llm = createLLMProvider(settings.ai_model_id);
   const instructions = buildInstructions();
   let warning: string | undefined;
   let rawLLMResponse: string;

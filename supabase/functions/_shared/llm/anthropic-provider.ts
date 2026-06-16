@@ -40,6 +40,19 @@ function isRetryable(err: unknown): boolean {
 }
 
 /**
+ * Whether to FAIL OVER to the fallback model. Covers provider-side problems with
+ * the primary model: any 5xx (incl. 500 api_error / 529 overloaded) and 429.
+ * A 4xx like 400/404 (bad request / unknown model) is NOT failed over — that
+ * would fail on the fallback too.
+ */
+function shouldFailover(err: unknown): boolean {
+  if (err instanceof Anthropic.APIError) {
+    return err.status === 429 || (typeof err.status === 'number' && err.status >= 500);
+  }
+  return false;
+}
+
+/**
  * Execute `fn` with exponential backoff on 429/529 errors.
  */
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
@@ -66,6 +79,8 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 export class AnthropicProvider implements LLMProvider {
   private client: Anthropic;
   readonly modelId: string;
+  /** Model to fall back to when the primary model returns a provider-side error. */
+  readonly fallbackModelId: string | null;
 
   /**
    * Populated after streamChat completes with any extended thinking content.
@@ -74,16 +89,39 @@ export class AnthropicProvider implements LLMProvider {
    */
   lastThinkingContent = '';
 
-  constructor(apiKey: string, modelId = 'claude-sonnet-4-6') {
+  constructor(apiKey: string, modelId = 'claude-sonnet-4-6', fallbackModelId: string | null = null) {
     this.client = new Anthropic({ apiKey });
     this.modelId = modelId;
+    // Don't fall over to the same model.
+    this.fallbackModelId = fallbackModelId && fallbackModelId !== modelId ? fallbackModelId : null;
+  }
+
+  /**
+   * Run `run(model)` on the primary model (with retry/backoff). If it fails with a
+   * provider-side error (5xx/429) and a fallback model is configured, retry the
+   * whole thing once on the fallback model. Other errors propagate unchanged.
+   */
+  private async withModelFailover<T>(run: (model: string) => Promise<T>): Promise<T> {
+    try {
+      return await withRetry(() => run(this.modelId));
+    } catch (err) {
+      if (this.fallbackModelId && shouldFailover(err)) {
+        console.warn(
+          `AnthropicProvider: failing over from ${this.modelId} to ${this.fallbackModelId}`,
+          err,
+        );
+        return await withRetry(() => run(this.fallbackModelId!));
+      }
+      throw err;
+    }
   }
 
   async *streamChat(
     messages: ChatMessage[],
     options: CompletionOptions,
   ): AsyncIterable<StreamEvent> {
-    // Build the streaming request parameters.
+    // Build the streaming request parameters. `model` is overwritten per attempt
+    // by withModelFailover so a provider-side error can fail over to the fallback.
     const params: Anthropic.MessageCreateParamsStreaming = {
       model: this.modelId,
       max_tokens: options.maxTokens ?? 4096,
@@ -107,10 +145,12 @@ export class AnthropicProvider implements LLMProvider {
       };
     }
 
-    // Retry the stream *creation* call (not the iteration — once streaming starts
-    // retrying mid-stream is unsound; the caller must handle that at a higher level).
-    const stream = await withRetry(() =>
-      this.client.messages.stream(params as Anthropic.MessageCreateParamsStreaming)
+    // Retry/fail-over the stream *creation* call (not the iteration — once
+    // streaming starts retrying mid-stream is unsound; the caller must handle that
+    // at a higher level). Failover to the fallback model only triggers on a
+    // provider-side error raised before the first chunk.
+    const stream = await this.withModelFailover((model) =>
+      Promise.resolve(this.client.messages.stream({ ...params, model }))
     );
 
     // Reset thinking buffer for this call.
@@ -184,8 +224,8 @@ export class AnthropicProvider implements LLMProvider {
       };
     }
 
-    const response = await withRetry(() =>
-      this.client.messages.create(params) as Promise<Anthropic.Message>
+    const response = await this.withModelFailover((model) =>
+      this.client.messages.create({ ...params, model }) as Promise<Anthropic.Message>
     );
 
     const text = response.content
@@ -236,8 +276,8 @@ export class AnthropicProvider implements LLMProvider {
       messages: [{ role: 'user', content: userContent }],
     };
 
-    const response = await withRetry(() =>
-      this.client.messages.create(params) as Promise<Anthropic.Message>
+    const response = await this.withModelFailover((model) =>
+      this.client.messages.create({ ...params, model }) as Promise<Anthropic.Message>
     );
 
     const text = response.content

@@ -4,6 +4,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Spinner } from '../shared/Spinner';
 import { toast } from '../../hooks/useToast';
+import { cn } from '../../lib/utils';
 import { callEdgeFunctionGet, callEdgeFunctionPatch } from '../../lib/sse';
 
 // ---------------------------------------------------------------------------
@@ -80,6 +81,20 @@ const FIELDS: FieldDef[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// AI model selection
+// ---------------------------------------------------------------------------
+
+// Curated list of selectable Claude models. Keep in sync with VALID_MODEL_IDS in
+// supabase/functions/settings-admin/index.ts.
+const MODEL_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 — balanced (default)' },
+  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 — most capable' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 — fastest' },
+];
+
+const DEFAULT_MODEL_ID = 'claude-sonnet-4-6';
+
+// ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
 
@@ -126,6 +141,11 @@ export function SettingsPanel() {
   // Cross-field threshold ordering error
   const [orderError, setOrderError] = useState<string | null>(null);
 
+  // AI model selection (independent save).
+  const [model, setModel] = useState<string>(DEFAULT_MODEL_ID);
+  const [serverModel, setServerModel] = useState<string>(DEFAULT_MODEL_ID);
+  const [savingModel, setSavingModel] = useState(false);
+
   useEffect(() => {
     void loadSettings();
   }, []);
@@ -166,6 +186,30 @@ export function SettingsPanel() {
 
     setValues(next);
     setServerValues(nextServer);
+
+    // AI model — fall back to the default if absent or not in the known list.
+    const rawModel = byKey['ai.model_id'];
+    const m =
+      typeof rawModel === 'string' && MODEL_OPTIONS.some(o => o.id === rawModel)
+        ? rawModel
+        : DEFAULT_MODEL_ID;
+    setModel(m);
+    setServerModel(m);
+  }
+
+  async function handleSaveModel() {
+    setSavingModel(true);
+    const { error } = await callEdgeFunctionPatch<unknown>('settings-admin/settings', {
+      updates: [{ key: 'ai.model_id', value: model }],
+    });
+    setSavingModel(false);
+
+    if (error) {
+      toast({ title: 'Save failed', description: error, variant: 'destructive' });
+    } else {
+      setServerModel(model);
+      toast({ title: 'Model saved', description: 'The active model has been updated.' });
+    }
   }
 
   function handleChange(key: string, raw: string) {
@@ -283,6 +327,47 @@ export function SettingsPanel() {
 
   return (
     <div>
+      {/* AI Model — independent save */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-foreground">AI Model</h2>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-6 space-y-6 mb-10">
+        <div className="space-y-1.5">
+          <Label htmlFor="ai.model_id">Active model</Label>
+          <select
+            id="ai.model_id"
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            className={cn(
+              'flex h-9 w-72 rounded-[6px] border border-input bg-background px-3 py-1 text-sm shadow-none transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0',
+              'disabled:cursor-not-allowed disabled:opacity-40',
+            )}
+            aria-describedby="ai.model_id-help"
+          >
+            {MODEL_OPTIONS.map(opt => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </select>
+          <p id="ai.model_id-help" className="text-xs text-muted-foreground">
+            The Claude model used for chat, summaries, and reviews. Applies on the next
+            request (cached up to 60s). A provider-side outage automatically fails over
+            to the configured fallback model.
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <Button
+            onClick={() => void handleSaveModel()}
+            loading={savingModel}
+            disabled={savingModel || model === serverModel}
+          >
+            Save Model
+          </Button>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-foreground">Context & Turns</h2>
       </div>

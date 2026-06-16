@@ -46,10 +46,21 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
   // True while the agent is mid-way through a structured block (epics / stories /
   // section draft) that we strip from the chat — the visible bubble would
   // otherwise look frozen during a long (up to ~1 min) generation.
-  const isGeneratingBlock =
-    role === 'assistant' &&
-    status === 'streaming' &&
-    /<(section_draft|epics|stories)\b/i.test(message.content);
+  // Which structured block (if any) is mid-stream — drives a block-specific
+  // progress label so e.g. epic generation doesn't claim to be writing stories.
+  const generatingBlock =
+    role === 'assistant' && status === 'streaming'
+      ? (message.content.match(/<(section_draft|epics|stories)\b/i)?.[1]?.toLowerCase() ?? null)
+      : null;
+  const isGeneratingBlock = generatingBlock !== null;
+  const generatingLabel =
+    generatingBlock === 'epics'
+      ? 'Generating… proposing the epics.'
+      : generatingBlock === 'stories'
+      ? 'Generating… detailed user stories can take a minute or two.'
+      : generatingBlock === 'section_draft'
+      ? 'Generating… drafting this section.'
+      : 'Generating…';
 
   if (role === 'system') {
     const isHandoff = content.toLowerCase().includes('session limit');
@@ -142,7 +153,7 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
                   <span className="h-2 w-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
                   <span className="h-2 w-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
                 </span>
-                <span className="text-sm">Generating… detailed user stories can take a minute or two.</span>
+                <span className="text-sm">{generatingLabel}</span>
               </div>
             )}
             {status === 'truncated' && (

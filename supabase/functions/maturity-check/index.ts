@@ -73,7 +73,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .update({ review_stage: 'maturity_running', updated_at: new Date().toISOString() })
     .eq('id', brdId);
 
-  const llm = createLLMProvider();
+  const llm = createLLMProvider(settings.ai_model_id);
   let result;
   try {
     result = await llm.complete(
