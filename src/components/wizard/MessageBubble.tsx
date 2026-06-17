@@ -102,6 +102,19 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
     );
   }
 
+  // Assistant — a completed message whose only content was a structured block
+  // (e.g. an <epics> proposal) strips to empty. Render nothing so the dedicated
+  // card (EpicProposalCard / story review) is the single surface — no empty bubble.
+  if (
+    role === 'assistant' &&
+    content.trim() === '' &&
+    status !== 'streaming' &&
+    status !== 'error' &&
+    status !== 'truncated'
+  ) {
+    return null;
+  }
+
   // Assistant
   return (
     <div className="flex gap-3 items-start max-w-[85%]">
