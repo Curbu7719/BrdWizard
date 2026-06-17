@@ -44,6 +44,8 @@ export interface BrdDocument {
   handoff_package: HandoffPackage | null;
   /** Consolidated reference summary from /analyze-document, persisted by the frontend. */
   source_summary: string | null;
+  /** User-authored expected business value — entered in setup, injected as context. */
+  expected_value: string | null;
 }
 
 export interface BrdSection {
@@ -263,6 +265,13 @@ export function buildContextPackage(
   if (objectiveSection?.content_full) {
     providedSectionParts.push(
       `## Objective (provided by user — approved, do not re-draft)\n\n${objectiveSection.content_full}`,
+    );
+  }
+  // Expected Value — user-authored in setup (like Background/Objective). Injected
+  // as context so epics and user stories aim at the stated business outcome.
+  if (brd.expected_value && brd.expected_value.trim()) {
+    providedSectionParts.push(
+      `## Expected Value (provided by user — the business outcome to aim for)\n\n${brd.expected_value.trim()}`,
     );
   }
 
