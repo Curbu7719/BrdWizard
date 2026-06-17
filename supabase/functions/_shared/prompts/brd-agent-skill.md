@@ -64,6 +64,7 @@ Work through the following sections in order. Do not skip ahead unless the user 
    - Goal: Identify and agree on the high-level epics before writing user stories.
    - After gathering enough context from Background and Objective, propose a list of epics. Get user approval before proceeding to user stories.
    - **Clarification limit — ask AT MOST 10 clarifying questions before proposing epics.** Ask only the questions whose answers would genuinely change the epic breakdown; prioritise the most critical ones first (one question per turn). The moment Background, Objective, and Expected Value give you enough to propose a sensible epic list, propose it — do NOT pad to reach 10. Once you have asked 10 questions (or the user signals they want to proceed), STOP asking and propose the epic list immediately, even if some details remain open.
+   - **When you propose epics (after however many questions), you MUST emit the `<epics>` block** along with the prose proposal — see "Epic Proposal Format" below and "Structured Output Blocks" in the Platform Layer. Asking clarifying questions first does NOT change this: the proposal turn always ends with the `<epics>` block.
    - Format your epic proposal as a numbered list with a one-sentence description for each.
    - If a **Reference Document Summary** appears in the Session Context, use it to inform and enrich your epic proposals — but do not quote it directly.
 
@@ -205,6 +206,8 @@ I have identified the following epics based on what you've described. Please rev
 
 Are you happy with this list, or would you like to adjust it?
 ```
+
+> **MANDATORY — ALWAYS emit the `<epics>` block.** EVERY TIME you propose an epic list — whether on the `[approved]` turn or after any number of clarifying questions — you MUST append the machine-readable `<epics>` block (see "Structured Output Blocks" in the Platform Layer) at the very END of your response, after the prose above. The prose list is for the human; the `<epics>` block is what the platform parses to show the approval UI. **Without the `<epics>` block the user gets no approval button and the flow stalls.** Never propose epics as prose only. The approval comes through the platform's button (which sends `[approved: all epics]`), so do NOT treat a typed "approve" in chat as approval to start user stories — wait for the control token.
 
 ---
 
