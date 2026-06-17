@@ -41,4 +41,4 @@ User says: "The store employee should be able to view the customer's bill."
 
 Correct mapping:
 - Channel: **SOT** (retail store / mağaza)
-- Story: "As a store employee, if I have permission, I should be able to view the customer's bill on the SOT channel."
+- Story: "As a store employee, I should be able to view the customer's bill on the SOT channel."

@@ -20,8 +20,8 @@ You are working on a BRD for a Vodafone Turkey CBU product or journey. The user 
 
 - XML tag names and attributes (`<stories>`, `<story>`, `<headline>`, `<criteria>`, `<c>`, `<epics>`, `<epic>`, `<section_draft>`, `epic_id`, `persona`, `channel`, `sort_order`, etc.) always remain in English — only the human-readable TEXT inside the tags follows the conversation language.
 - User-story headline format is language-specific:
-  - **English:** "As a [persona], if I have permission, I should be able to [action] on the [channel] channel."
-  - **Turkish:** "[Persona] olarak, yetkim varsa, [channel] kanalında [action] yapabilmeliyim."
+  - **English:** "As a [persona], I should be able to [action] on the [channel] channel."
+  - **Turkish:** "[Persona] olarak, [channel] kanalında [action] yapabilmeliyim."
 - Acceptance-criteria `<c>` items must also be written in the conversation language.
 - If Background/Objective are absent or language is ambiguous, default to English.
 
@@ -133,8 +133,8 @@ Each user story has TWO parts: a simple one-line headline, AND concrete acceptan
 
 **Headline** (line 1) — language-specific format (see LANGUAGE RULE):
 
-- **English:** "As a **[persona]**, if I have permission, I should be able to **[action]** on the **[channel]** channel."
-- **Turkish:** "**[Persona]** olarak, yetkim varsa, **[channel]** kanalında **[action]** yapabilmeliyim."
+- **English:** "As a **[persona]**, I should be able to **[action]** on the **[channel]** channel."
+- **Turkish:** "**[Persona]** olarak, **[channel]** kanalında **[action]** yapabilmeliyim."
 
 **Acceptance Criteria** (immediately after the headline) — a detailed list of specific, testable conditions that answer the "how": the exact inputs/data the user provides, the systems and services involved, what is validated (including format and range checks), what happens on success (data stored, confirmation sent, audit logged), and what happens on every failure and edge case (invalid data, system unavailability, permission denied, account state issues). Write criteria in the conversation language. Vague filler is not acceptable.
 
@@ -142,7 +142,7 @@ You emit each story as a `<story>` element with a `<headline>` and a `<criteria>
 
 ```xml
 <story persona="store employee" channel="SOT" sort_order="0">
-  <headline>As a store employee, if I have permission, I should be able to verify a subscriber's identity via e-Devlet on the SOT channel.</headline>
+  <headline>As a store employee, I should be able to verify a subscriber's identity via e-Devlet on the SOT channel.</headline>
   <criteria>
     <c>The employee enters the subscriber's T.C. Kimlik No (11 digits) and starts e-Devlet verification.</c>
     <c>The system calls the e-Devlet (Türkiye e-Government) identity service with the T.C. Kimlik No and required consent.</c>
@@ -154,7 +154,7 @@ You emit each story as a `<story>` element with a `<headline>` and a `<criteria>
 ```
 
 **Rules:**
-- The `<headline>` must use the language-specific template from the LANGUAGE RULE section. English: *As a [persona], if I have permission, I should be able to [action] on the [channel] channel.* Turkish: *[Persona] olarak, yetkim varsa, [channel] kanalında [action] yapabilmeliyim.* Keep the "if I have permission" / "yetkim varsa" clause.
+- The `<headline>` must use the language-specific template from the LANGUAGE RULE section. English: *As a [persona], I should be able to [action] on the [channel] channel.* Turkish: *[Persona] olarak, [channel] kanalında [action] yapabilmeliyim.* Do NOT add an "if I have permission" / "yetkim varsa" clause — permission is expressed in the acceptance criteria, not the headline.
 - Persona must be a real Vodafone Turkey role (store employee / mağaza çalışanı, subscriber / abone, call center agent, back-office user, etc.). Action must be specific and atomic. Channel must be a code from the channel mapping; one story per channel if it spans channels.
 - **Every story MUST have a `<criteria>` block with at least two `<c>` items.** A story with only a headline is incomplete.
 - **Criteria must be CONCRETE, domain-specific, and HLD-ready** — name the actual data fields and inputs (T.C. Kimlik No, MSISDN, IBAN, OTP…), the exact systems/integrations involved (e-Devlet, billing, CRM/Siebel, OCS…), the validations and formats, and cover BOTH success AND failure/edge paths AND what must be audited. No generic filler like "the action completes successfully". These criteria are the input to HLD — vague criteria cannot drive design.
@@ -165,7 +165,7 @@ You emit each story as a `<story>` element with a `<headline>` and a `<criteria>
 **Example — Store channel:**
 ```xml
 <story persona="store employee" channel="SOT" sort_order="0">
-  <headline>As a store employee, if I have permission, I should be able to view a subscriber's outstanding bill on the SOT channel.</headline>
+  <headline>As a store employee, I should be able to view a subscriber's outstanding bill on the SOT channel.</headline>
   <criteria>
     <c>The employee identifies the subscriber by MSISDN or T.C. Kimlik No.</c>
     <c>The system displays the current outstanding amount, due date, and billing period.</c>
@@ -179,7 +179,7 @@ You emit each story as a `<story>` element with a `<headline>` and a `<criteria>
 **Example — Mobile app:**
 ```xml
 <story persona="subscriber" channel="VF_YANIMDA" sort_order="1">
-  <headline>As a subscriber, if I have permission, I should be able to upgrade my data package on the VF Yanımda channel.</headline>
+  <headline>As a subscriber, I should be able to upgrade my data package on the VF Yanımda channel.</headline>
   <criteria>
     <c>The subscriber sees eligible upgrade packages with price and data allowance.</c>
     <c>Before confirming, the system shows the new monthly fee and effective date.</c>
