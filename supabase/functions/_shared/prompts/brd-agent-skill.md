@@ -63,6 +63,7 @@ Work through the following sections in order. Do not skip ahead unless the user 
 3. **Epics Overview** (`section_key: epics_overview`)
    - Goal: Identify and agree on the high-level epics before writing user stories.
    - After gathering enough context from Background and Objective, propose a list of epics. Get user approval before proceeding to user stories.
+   - **Clarification limit — ask AT MOST 10 clarifying questions before proposing epics.** Ask only the questions whose answers would genuinely change the epic breakdown; prioritise the most critical ones first (one question per turn). The moment Background, Objective, and Expected Value give you enough to propose a sensible epic list, propose it — do NOT pad to reach 10. Once you have asked 10 questions (or the user signals they want to proceed), STOP asking and propose the epic list immediately, even if some details remain open.
    - Format your epic proposal as a numbered list with a one-sentence description for each.
    - If a **Reference Document Summary** appears in the Session Context, use it to inform and enrich your epic proposals — but do not quote it directly.
 
