@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrdDocument, useBrdActions } from '../hooks/useBrd';
 import { useChat } from '../hooks/useChat';
@@ -67,6 +67,14 @@ export default function BrdWorkspacePage() {
     open: false,
     score: null,
   });
+
+  // Live readiness score — recomputes whenever the BRD, sections, epics, stories
+  // or warnings change, so acknowledging a finding or editing content updates the
+  // displayed score immediately (not only when the Generate dialog opens).
+  const liveScore = useMemo(
+    () => (brd ? computeBrdScore({ brd, sections, epics, stories, warnings }) : null),
+    [brd, sections, epics, stories, warnings],
+  );
 
   // ── Classification ──────────────────────────────────────────────────────────
   // Shown once on first entry when the BRD has never been classified.
@@ -653,6 +661,7 @@ export default function BrdWorkspacePage() {
             onAcknowledgeWarning={handleAcknowledgeWarning}
             onGenerateBrd={() => doExport(false)}
             generating={generating}
+            score={liveScore?.score ?? null}
           />
         </div>
       </div>

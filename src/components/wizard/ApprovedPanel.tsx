@@ -3,6 +3,7 @@ import { BrdInputCard } from './BrdInputCard';
 import { ReviewPanel } from './ReviewPanel';
 import { Button } from '../ui/button';
 import { Spinner } from '../shared/Spinner';
+import { cn } from '../../lib/utils';
 import type { BrdSection, Epic, UserStory, BrdWarning, ReviewStage } from '../../types/brd';
 
 interface ApprovedPanelProps {
@@ -32,6 +33,8 @@ interface ApprovedPanelProps {
   onAcknowledgeWarning: (id: string) => void;
   onGenerateBrd: () => void;
   generating: boolean;
+  /** Live readiness score (0-100), recomputed by the parent. */
+  score?: number | null;
 }
 
 export function ApprovedPanel({
@@ -54,6 +57,7 @@ export function ApprovedPanel({
   onAcknowledgeWarning,
   onGenerateBrd,
   generating,
+  score,
 }: ApprovedPanelProps) {
   const generalWarnings = warnings.filter(w => w.target_type === 'brd');
   const openCount = warnings.filter(w => w.status === 'open').length;
@@ -154,8 +158,16 @@ export function ApprovedPanel({
         )}
       </div>
 
-      {/* Footer — Generate BRD */}
-      <div className="shrink-0 border-t border-border bg-background/80 px-6 py-4">
+      {/* Footer — live readiness score + Generate BRD */}
+      <div className="shrink-0 border-t border-border bg-background/80 px-6 py-4 space-y-2">
+        {typeof score === 'number' && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Readiness score</span>
+            <span className={cn('font-semibold tabular-nums', score >= 70 ? 'text-success' : 'text-warning')}>
+              {score} / 100
+            </span>
+          </div>
+        )}
         <Button
           className="w-full"
           onClick={onGenerateBrd}
