@@ -13,6 +13,8 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
   const [stage, setStage] = useState<ReviewStage>(initialStage);
   const [busy, setBusy] = useState(false);
   const timerRef = useRef<number | null>(null);
+  // Guards the maturity auto-resume so it fires at most once per mount.
+  const maturityResumedRef = useRef(false);
 
   const loadWarnings = useCallback(async () => {
     const { data } = await supabase
@@ -63,6 +65,18 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [stage, brdId, loadWarnings, runMaturity]);
+
+  // Resume a stuck maturity step. Maturity runs as a single synchronous edge
+  // call (no polling), so if the user navigated away while it was mid-flight the
+  // BRD can be left at 'maturity_running' with no one to finish it. When we load
+  // a BRD already in that state, re-run maturity once — the edge function
+  // replaces maturity findings, so re-running is safe (idempotent end state).
+  useEffect(() => {
+    if (initialStage === 'maturity_running' && !maturityResumedRef.current) {
+      maturityResumedRef.current = true;
+      void runMaturity();
+    }
+  }, [initialStage, runMaturity]);
 
   const submitForReview = useCallback(async () => {
     setBusy(true);
