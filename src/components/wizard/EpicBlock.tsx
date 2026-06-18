@@ -32,10 +32,11 @@ export function EpicBlock({ epic, stories, onEditStory, warnings = [], onAcknowl
         <p className="text-xs text-muted-foreground italic">No stories yet.</p>
       ) : (
         <ul className="space-y-0.5">
-          {stories.map(story => (
+          {stories.map((story, i) => (
             <StoryItem
               key={story.id}
               story={story}
+              index={i + 1}
               onEdit={onEditStory}
               warnings={warnings.filter(w => w.target_story_id === story.id)}
               onAcknowledgeWarning={onAcknowledgeWarning}

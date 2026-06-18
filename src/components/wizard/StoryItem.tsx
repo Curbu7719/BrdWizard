@@ -8,6 +8,8 @@ import type { UserStory, BrdWarning } from '../../types/brd';
 
 interface StoryItemProps {
   story: UserStory;
+  /** 1-based position within its epic, shown as a leading number. */
+  index?: number;
   className?: string;
   /** When provided, the story becomes editable in place (right panel). */
   onEdit?: (storyId: string, text: string) => void | Promise<void>;
@@ -16,7 +18,7 @@ interface StoryItemProps {
   onAcknowledgeWarning?: (id: string) => void;
 }
 
-export function StoryItem({ story, className, onEdit, warnings = [], onAcknowledgeWarning }: StoryItemProps) {
+export function StoryItem({ story, index, className, onEdit, warnings = [], onAcknowledgeWarning }: StoryItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(story.full_text);
   const [saving, setSaving] = useState(false);
@@ -76,6 +78,11 @@ export function StoryItem({ story, className, onEdit, warnings = [], onAcknowled
   return (
     <li className={cn('py-1.5 text-sm', className)}>
       <div className="group flex gap-2 items-start">
+        {index !== undefined && (
+          <span className="shrink-0 mt-0.5 w-5 text-right text-xs font-medium text-muted-foreground tabular-nums">
+            {index}.
+          </span>
+        )}
         <span className="shrink-0 mt-0.5">
           {story.is_approved ? (
             <CheckCircle className="h-4 w-4 text-success" aria-label="Approved" />
