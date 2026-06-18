@@ -195,8 +195,13 @@ export async function callEdgeFunctionPatch<T>(
   }
 }
 
-/** Trigger export-word and trigger browser download. */
-export async function exportWord(brdId: string, title: string, score?: number): Promise<{ error: string | null }> {
+/**
+ * Record a BRD generation in the audit log (brd_generations) via export-word.
+ * The .docx itself is built in the browser (see lib/exportDocx); this only logs
+ * who generated which BRD with what score. Non-fatal — a logging failure must
+ * not block the download the user already received.
+ */
+export async function logGeneration(brdId: string, score?: number): Promise<{ error: string | null }> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return { error: 'Not authenticated' };
 
@@ -213,25 +218,13 @@ export async function exportWord(brdId: string, title: string, score?: number): 
       body: JSON.stringify({ brd_id: brdId, score }),
     });
     if (!res.ok) {
-      // Surface the server's error message (JSON { error }) so failures are
-      // diagnosable instead of just a bare status code.
       let detail = '';
       try {
         const j = await res.json();
         if (j?.error) detail = `: ${j.error}`;
       } catch { /* non-JSON body */ }
-      return { error: `Export failed (${res.status})${detail}` };
+      return { error: `Log failed (${res.status})${detail}` };
     }
-
-    const blob = await res.blob();
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = `BRD-${title.replace(/\s+/g, '-')}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(href);
     return { error: null };
   } catch (err) {
     return { error: (err as Error).message };

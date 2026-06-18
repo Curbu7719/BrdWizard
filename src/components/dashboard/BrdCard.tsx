@@ -13,7 +13,7 @@ import {
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import type { BrdDocument } from '../../types/brd';
 import { useBrdActions } from '../../hooks/useBrd';
-import { exportWord } from '../../lib/sse';
+import { exportBrdToWord } from '../../lib/exportDocx';
 import { toast } from '../../hooks/useToast';
 
 interface BrdCardProps {
@@ -42,9 +42,15 @@ export function BrdCard({ brd, isOwner, onDeleted, onUpdated }: BrdCardProps) {
 
   async function handleExport() {
     setExporting(true);
-    const { error } = await exportWord(brd.id, brd.title);
-    setExporting(false);
-    if (error) toast({ title: 'Export failed', description: error, variant: 'destructive' });
+    try {
+      // Dashboard card has only the BRD summary, so exportBrdToWord fetches the
+      // sections/epics/stories itself, then builds + downloads the .docx.
+      await exportBrdToWord(brd);
+    } catch (err) {
+      toast({ title: 'Export failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function handleDelete() {

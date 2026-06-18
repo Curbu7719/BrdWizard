@@ -12,7 +12,7 @@ import { WorkspaceHeader } from '../components/wizard/WorkspaceHeader';
 import { ScoreDialog } from '../components/wizard/ScoreDialog';
 import { computeBrdScore, type BrdScore } from '../lib/brdScore';
 import { Spinner } from '../components/shared/Spinner';
-import { exportWord } from '../lib/sse';
+import { exportBrdToWord } from '../lib/exportDocx';
 import { toast } from '../hooks/useToast';
 import type { ContextWarningLevel } from '../hooks/useChat';
 import type { ClassificationData } from '../components/wizard/ClassificationForm';
@@ -464,13 +464,15 @@ export default function BrdWorkspacePage() {
     }
 
     setGenerating(true);
-    const { error } = await exportWord(brd.id, brd.title, scoreDialog.score?.score);
-    setGenerating(false);
-
-    if (error) {
-      toast({ title: 'Export failed', description: error, variant: 'destructive' });
-    } else {
+    try {
+      // Build the .docx in the browser (the edge runtime can't run docx's Packer).
+      // Workspace already has the data loaded, so pass it in (no refetch).
+      await exportBrdToWord(brd, { sections, epics, stories, score: scoreDialog.score?.score });
       toast({ title: 'BRD exported successfully', variant: 'default' });
+    } catch (err) {
+      toast({ title: 'Export failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setGenerating(false);
     }
   }
 
