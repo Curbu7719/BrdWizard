@@ -76,9 +76,16 @@ export function computeBrdScore(args: {
     else if (s === 'info') deduction += 2;
     else deduction += 4; // warning, unclear, default
   }
-  const reviewed = brd.review_stage === 'maturity_done';
+  // "Reviewed" = the compliance review has produced findings (compliance_done
+  // onward), not strictly maturity_done. Once findings exist, acknowledging /
+  // resolving them must be able to raise this pillar — otherwise the user
+  // engages with the review but the score stays pinned at the cap.
+  const reviewed =
+    brd.review_stage === 'compliance_done' ||
+    brd.review_stage === 'maturity_running' ||
+    brd.review_stage === 'maturity_done';
   let pillar3 = Math.max(0, 40 - deduction);
-  // Never reviewed → compliance findings are unknown, so withhold most of this
+  // Review never ran → compliance findings are unknown, so withhold most of this
   // pillar to reward actually running the review. Capped hard (14/40) so a full
   // but unreviewed BRD can't reach a confident "ready" score on completeness alone.
   if (!reviewed) pillar3 = Math.min(pillar3, 14);
