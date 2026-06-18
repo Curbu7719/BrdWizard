@@ -14,6 +14,14 @@ export interface ChatMessage {
 
 export type ContextWarningLevel = 'none' | 'warn' | 'checkpoint' | 'handoff';
 
+/** Token / context usage from the latest turn (backend `usage` SSE event). */
+export interface ChatUsage {
+  inputTokens: number;
+  outputTokens: number;
+  /** Input tokens as a percentage of the model's context window. */
+  contextPct: number;
+}
+
 let msgCounter = 0;
 function nextId() {
   return `msg-${++msgCounter}`;
@@ -46,6 +54,7 @@ export function useChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [contextLevel, setContextLevel] = useState<ContextWarningLevel>('none');
+  const [usage, setUsage] = useState<ChatUsage | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // ---------------------------------------------------------------------------
@@ -61,7 +70,7 @@ export function useChat({
     async function loadHistory() {
       const { data } = await supabase
         .from('conversation_turns')
-        .select('role, content')
+        .select('role, content, input_tokens, output_tokens, context_pct')
         .eq('brd_id', brdId)
         .order('turn_index', { ascending: true });
 
@@ -75,6 +84,19 @@ export function useChat({
             status: 'idle' as MessageStatus,
           }));
         setMessages(loaded);
+
+        // Seed the usage indicator from the most recent turn that recorded tokens,
+        // so resuming a BRD shows context/token usage without waiting for a turn.
+        const lastWithUsage = [...data].reverse().find(
+          t => typeof t.input_tokens === 'number' && t.input_tokens > 0,
+        );
+        if (lastWithUsage) {
+          setUsage({
+            inputTokens: lastWithUsage.input_tokens ?? 0,
+            outputTokens: lastWithUsage.output_tokens ?? 0,
+            contextPct: lastWithUsage.context_pct ?? 0,
+          });
+        }
       }
     }
 
@@ -133,6 +155,14 @@ export function useChat({
                   )
                 );
               }
+              break;
+            case 'usage':
+              // Per-turn token + context-window usage (emitted just before stop).
+              setUsage({
+                inputTokens: event.input_tokens ?? 0,
+                outputTokens: event.output_tokens ?? 0,
+                contextPct: event.context_pct ?? 0,
+              });
               break;
             case 'stop':
               // Mark assistant message done but keep reading stream for structured events.
@@ -206,5 +236,5 @@ export function useChat({
     setContextLevel('none');
   }
 
-  return { messages, streaming, contextLevel, send, abort, addSystemMessage, resetContextLevel };
+  return { messages, streaming, contextLevel, usage, send, abort, addSystemMessage, resetContextLevel };
 }

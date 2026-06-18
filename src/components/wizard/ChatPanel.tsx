@@ -1,6 +1,7 @@
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
-import type { ChatMessage, ContextWarningLevel } from '../../hooks/useChat';
+import { ChatUsageBar } from './ChatUsageBar';
+import type { ChatMessage, ContextWarningLevel, ChatUsage } from '../../hooks/useChat';
 import type { Epic, UserStory } from '../../types/brd';
 import type { ClassificationData } from './ClassificationForm';
 
@@ -9,6 +10,8 @@ interface ChatPanelProps {
   streaming: boolean;
   contextLevel: ContextWarningLevel;
   contextPct?: number;
+  /** Latest token / context usage for the status bar below the chat. */
+  usage?: ChatUsage | null;
   disabled?: boolean;
   onSend: (text: string, file?: File) => void;
   onRetry?: () => void;
@@ -57,6 +60,7 @@ export function ChatPanel({
   streaming,
   contextLevel,
   contextPct,
+  usage,
   disabled,
   onSend,
   onRetry,
@@ -114,6 +118,7 @@ export function ChatPanel({
         isLastEpic={isLastEpic}
         onContinueNextEpic={onContinueNextEpic}
       />
+      {usage && <ChatUsageBar usage={usage} />}
       <ChatInput
         onSend={onSend}
         disabled={inputDisabled}

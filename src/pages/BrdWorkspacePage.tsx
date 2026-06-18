@@ -136,7 +136,7 @@ export default function BrdWorkspacePage() {
 
   // ── useChat ─────────────────────────────────────────────────────────────────
 
-  const { messages, streaming, contextLevel, send } = useChat({
+  const { messages, streaming, contextLevel, usage, send } = useChat({
     brdId: id!,
     // Local activeSection is the source of truth (see above). Defaults to
     // 'background' so the very first message has a valid section_key.
@@ -607,6 +607,7 @@ export default function BrdWorkspacePage() {
             streaming={streaming}
             contextLevel={contextLevel}
             contextPct={contextPct}
+            usage={usage}
             showClassification={showClassification}
             classificationInitialTitle={brd.title === 'Untitled BRD' ? '' : brd.title}
             classificationDisabled={streaming}
