@@ -421,13 +421,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ],
   });
 
-  // Serialise to buffer.
-  let buffer: Uint8Array;
+  // Serialise to a Blob. NOTE: Packer.toBuffer() relies on Node's Buffer/stream
+  // internals and is unreliable in the Deno edge runtime; Packer.toBlob() uses a
+  // native Blob and works consistently here.
+  let blob: Blob;
   try {
-    buffer = await Packer.toBuffer(doc);
+    blob = await Packer.toBlob(doc);
   } catch (err) {
     console.error('[export-word] Packer error:', err);
-    return new Response(JSON.stringify({ error: 'Failed to generate document' }), {
+    return new Response(JSON.stringify({ error: `Failed to generate document: ${(err as Error)?.message ?? err}` }), {
       status: 500,
       headers: withCors({ 'Content-Type': 'application/json' }),
     });
@@ -447,13 +449,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Sanitise filename.
   const safeName = brd.title.replace(/[^a-zA-Z0-9\-_ ]/g, '').trim() || 'BRD';
 
-  return new Response(buffer, {
+  return new Response(blob, {
     status: 200,
     headers: withCors({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': `attachment; filename="BRD-${safeName}.docx"`,
-      'Content-Length': String(buffer.byteLength),
+      'Content-Length': String(blob.size),
     }),
   });
 });

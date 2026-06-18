@@ -212,7 +212,16 @@ export async function exportWord(brdId: string, title: string, score?: number): 
       },
       body: JSON.stringify({ brd_id: brdId, score }),
     });
-    if (!res.ok) return { error: `Export failed (${res.status})` };
+    if (!res.ok) {
+      // Surface the server's error message (JSON { error }) so failures are
+      // diagnosable instead of just a bare status code.
+      let detail = '';
+      try {
+        const j = await res.json();
+        if (j?.error) detail = `: ${j.error}`;
+      } catch { /* non-JSON body */ }
+      return { error: `Export failed (${res.status})${detail}` };
+    }
 
     const blob = await res.blob();
     const href = URL.createObjectURL(blob);
