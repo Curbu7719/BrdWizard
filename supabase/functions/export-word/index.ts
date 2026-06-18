@@ -428,8 +428,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     blob = await Packer.toBlob(doc);
   } catch (err) {
-    console.error('[export-word] Packer error:', err);
-    return new Response(JSON.stringify({ error: `Failed to generate document: ${(err as Error)?.message ?? err}` }), {
+    const e = err as Error;
+    const detail = `${e?.name ?? 'Error'}: ${e?.message || '(no message)'} | ${(e?.stack ?? String(err)).slice(0, 400)}`;
+    console.error('[export-word] Packer error:', detail);
+    return new Response(JSON.stringify({ error: `Failed to generate document — ${detail}` }), {
       status: 500,
       headers: withCors({ 'Content-Type': 'application/json' }),
     });
