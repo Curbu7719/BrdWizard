@@ -187,25 +187,27 @@ function epicBlock(
   return paragraphs;
 }
 
-/** "Rejected Findings" appendix — review findings the user explicitly rejected. */
-function rejectedFindingsBlock(warnings: BrdWarning[]): Paragraph[] {
-  const rejected = warnings.filter((w) => w.status === 'rejected');
-  if (rejected.length === 0) return [];
+/**
+ * Review-findings appendix for a given status (open / rejected). Acknowledged
+ * findings are not listed here — their recommendation is applied to the relevant
+ * acceptance criteria instead.
+ */
+function findingsBlock(
+  warnings: BrdWarning[],
+  status: BrdWarning['status'],
+  heading: string,
+  intro: string,
+): Paragraph[] {
+  const items = warnings.filter((w) => w.status === status);
+  if (items.length === 0) return [];
 
   const paragraphs: Paragraph[] = [
-    new Paragraph({ text: 'Rejected Review Findings', heading: HeadingLevel.HEADING_1 }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: 'The following review findings were considered and rejected (not applied to the BRD).',
-          italics: true,
-        }),
-      ],
-    }),
+    new Paragraph({ text: heading, heading: HeadingLevel.HEADING_1 }),
+    new Paragraph({ children: [new TextRun({ text: intro, italics: true })] }),
     spacer(),
   ];
 
-  rejected.forEach((w, i) => {
+  items.forEach((w, i) => {
     const label = WARNING_SOURCE_LABEL[w.source] ?? w.source;
     paragraphs.push(
       new Paragraph({
@@ -217,7 +219,7 @@ function rejectedFindingsBlock(warnings: BrdWarning[]): Paragraph[] {
         new Paragraph({
           indent: { left: 360 },
           children: [
-            new TextRun({ text: 'Recommendation (rejected): ', italics: true }),
+            new TextRun({ text: 'Recommendation: ', italics: true }),
             new TextRun({ text: w.recommendation }),
           ],
         }),
@@ -285,8 +287,24 @@ export async function buildBrdDocxBlob({ brd, sections, epics, stories, warnings
     children.push(...textBlock('Notes', brd.notes.trim()));
   }
 
-  // Rejected review findings — last section.
-  children.push(...rejectedFindingsBlock(warnings));
+  // Review findings appendix — unresolved (open) then rejected. Acknowledged
+  // findings aren't listed; their recommendation is already in the criteria.
+  children.push(
+    ...findingsBlock(
+      warnings,
+      'open',
+      'Open Review Findings',
+      'The following review findings are unresolved (neither acknowledged nor rejected).',
+    ),
+  );
+  children.push(
+    ...findingsBlock(
+      warnings,
+      'rejected',
+      'Rejected Review Findings',
+      'The following review findings were considered and rejected (not applied to the BRD).',
+    ),
+  );
 
   const doc = new Document({
     creator: 'BRD Wizard',
