@@ -1,4 +1,4 @@
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
 import type { BrdWarning, WarningSource } from '../../types/brd';
@@ -20,10 +20,13 @@ function severityClass(severity: string): string {
 interface WarningListProps {
   warnings: BrdWarning[];
   onAcknowledge: (id: string) => void;
+  /** Reject a finding (declines the recommendation; listed in the BRD's Rejected
+   *  Findings section). When omitted, only the Acknowledge action is shown. */
+  onReject?: (id: string) => void;
   className?: string;
 }
 
-export function WarningList({ warnings, onAcknowledge, className }: WarningListProps) {
+export function WarningList({ warnings, onAcknowledge, onReject, className }: WarningListProps) {
   if (warnings.length === 0) return null;
   return (
     <div className={cn('space-y-2', className)}>
@@ -40,6 +43,11 @@ export function WarningList({ warnings, onAcknowledge, className }: WarningListP
                 <Check className="h-3 w-3" aria-hidden="true" /> acknowledged
               </span>
             )}
+            {w.status === 'rejected' && (
+              <span className="ml-auto inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                <X className="h-3 w-3" aria-hidden="true" /> rejected
+              </span>
+            )}
           </div>
           <p className="text-foreground leading-snug whitespace-pre-wrap">{w.message}</p>
           {w.recommendation && (
@@ -48,15 +56,30 @@ export function WarningList({ warnings, onAcknowledge, className }: WarningListP
             </p>
           )}
           {w.status === 'open' && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-1.5 h-7 px-2 text-xs"
-              onClick={() => onAcknowledge(w.id)}
-            >
-              <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-              Acknowledge
-            </Button>
+            <div className="mt-1.5 flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => onAcknowledge(w.id)}
+                title="Accept the recommendation (added to the acceptance criteria)"
+              >
+                <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                Acknowledge
+              </Button>
+              {onReject && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => onReject(w.id)}
+                  title="Reject the recommendation (recorded in the BRD's Rejected Findings)"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                  Reject
+                </Button>
+              )}
+            </div>
           )}
         </div>
       ))}

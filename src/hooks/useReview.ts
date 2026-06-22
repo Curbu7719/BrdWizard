@@ -98,7 +98,14 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
     setWarnings(prev => prev.map(w => (w.id === id ? { ...w, status: 'acknowledged' } : w)));
   }, []);
 
+  // Reject a finding: the user declines the recommendation. It is recorded as
+  // 'rejected' and listed in a "Rejected Findings" section of the exported BRD.
+  const reject = useCallback(async (id: string) => {
+    await supabase.from('brd_warnings').update({ status: 'rejected' }).eq('id', id);
+    setWarnings(prev => prev.map(w => (w.id === id ? { ...w, status: 'rejected' } : w)));
+  }, []);
+
   const openCount = warnings.filter(w => w.status === 'open').length;
 
-  return { warnings, stage, busy, openCount, submitForReview, acknowledge, reload: loadWarnings };
+  return { warnings, stage, busy, openCount, submitForReview, acknowledge, reject, reload: loadWarnings };
 }

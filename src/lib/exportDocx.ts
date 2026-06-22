@@ -18,9 +18,16 @@ import {
   AlignmentType,
   Packer,
 } from 'docx';
-import type { BrdDocument, BrdSection, Epic, UserStory } from '../types/brd';
+import type { BrdDocument, BrdSection, Epic, UserStory, BrdWarning, WarningSource } from '../types/brd';
 import { supabase } from './supabase';
 import { logGeneration } from './sse';
+
+const WARNING_SOURCE_LABEL: Record<WarningSource, string> = {
+  kvkk: 'KVKK',
+  data_privacy: 'Data Privacy',
+  regulation: 'Regulation',
+  maturity: 'Maturity',
+};
 
 function spacer(): Paragraph {
   return new Paragraph({ text: '' });
@@ -180,15 +187,58 @@ function epicBlock(
   return paragraphs;
 }
 
+/** "Rejected Findings" appendix — review findings the user explicitly rejected. */
+function rejectedFindingsBlock(warnings: BrdWarning[]): Paragraph[] {
+  const rejected = warnings.filter((w) => w.status === 'rejected');
+  if (rejected.length === 0) return [];
+
+  const paragraphs: Paragraph[] = [
+    new Paragraph({ text: 'Rejected Review Findings', heading: HeadingLevel.HEADING_1 }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'The following review findings were considered and rejected (not applied to the BRD).',
+          italics: true,
+        }),
+      ],
+    }),
+    spacer(),
+  ];
+
+  rejected.forEach((w, i) => {
+    const label = WARNING_SOURCE_LABEL[w.source] ?? w.source;
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: `${i + 1}. [${label} · ${w.severity}] ${w.message}`, bold: true })],
+      }),
+    );
+    if (w.recommendation) {
+      paragraphs.push(
+        new Paragraph({
+          indent: { left: 360 },
+          children: [
+            new TextRun({ text: 'Recommendation (rejected): ', italics: true }),
+            new TextRun({ text: w.recommendation }),
+          ],
+        }),
+      );
+    }
+  });
+
+  paragraphs.push(spacer());
+  return paragraphs;
+}
+
 export interface BrdExportData {
   brd: BrdDocument;
   sections: BrdSection[];
   epics: Epic[];
   stories: UserStory[];
+  warnings?: BrdWarning[];
 }
 
 /** Build the complete BRD .docx in the browser and return it as a Blob. */
-export async function buildBrdDocxBlob({ brd, sections, epics, stories }: BrdExportData): Promise<Blob> {
+export async function buildBrdDocxBlob({ brd, sections, epics, stories, warnings = [] }: BrdExportData): Promise<Blob> {
   const children: Paragraph[] = [];
 
   children.push(...titlePage(brd));
@@ -235,6 +285,9 @@ export async function buildBrdDocxBlob({ brd, sections, epics, stories }: BrdExp
     children.push(...textBlock('Notes', brd.notes.trim()));
   }
 
+  // Rejected review findings — last section.
+  children.push(...rejectedFindingsBlock(warnings));
+
   const doc = new Document({
     creator: 'BRD Wizard',
     title: brd.title,
@@ -266,24 +319,27 @@ export function downloadBlob(blob: Blob, filename: string): void {
  */
 export async function exportBrdToWord(
   brd: BrdDocument,
-  opts?: { sections?: BrdSection[]; epics?: Epic[]; stories?: UserStory[]; score?: number },
+  opts?: { sections?: BrdSection[]; epics?: Epic[]; stories?: UserStory[]; warnings?: BrdWarning[]; score?: number },
 ): Promise<void> {
   let sections = opts?.sections;
   let epics = opts?.epics;
   let stories = opts?.stories;
+  let warnings = opts?.warnings;
 
-  if (!sections || !epics || !stories) {
-    const [s, e, st] = await Promise.all([
+  if (!sections || !epics || !stories || !warnings) {
+    const [s, e, st, w] = await Promise.all([
       supabase.from('brd_sections').select('*').eq('brd_id', brd.id).order('sort_order', { ascending: true }),
       supabase.from('epics').select('*').eq('brd_id', brd.id).order('sort_order', { ascending: true }),
       supabase.from('user_stories').select('*').eq('brd_id', brd.id).order('sort_order', { ascending: true }),
+      supabase.from('brd_warnings').select('*').eq('brd_id', brd.id),
     ]);
-    sections = (s.data ?? []) as BrdSection[];
-    epics = (e.data ?? []) as Epic[];
-    stories = (st.data ?? []) as UserStory[];
+    sections = sections ?? ((s.data ?? []) as BrdSection[]);
+    epics = epics ?? ((e.data ?? []) as Epic[]);
+    stories = stories ?? ((st.data ?? []) as UserStory[]);
+    warnings = warnings ?? ((w.data ?? []) as BrdWarning[]);
   }
 
-  const blob = await buildBrdDocxBlob({ brd, sections, epics, stories });
+  const blob = await buildBrdDocxBlob({ brd, sections, epics, stories, warnings });
   const safeName = brd.title.replace(/[^a-zA-Z0-9\-_ ]/g, '').trim() || 'BRD';
   downloadBlob(blob, `BRD-${safeName.replace(/\s+/g, '-')}.docx`);
 

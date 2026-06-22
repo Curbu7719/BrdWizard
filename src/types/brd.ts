@@ -13,7 +13,7 @@ export type ReviewStage =
   | 'maturity_running'
   | 'maturity_done';
 export type WarningSource = 'kvkk' | 'data_privacy' | 'regulation' | 'maturity';
-export type WarningStatus = 'open' | 'acknowledged';
+export type WarningStatus = 'open' | 'acknowledged' | 'rejected';
 export type BrdVisibility = 'public' | 'private';
 export type BrdLine = 'CBU';
 export type ProductType = 'prepaid' | 'postpaid' | 'both' | 'unknown';

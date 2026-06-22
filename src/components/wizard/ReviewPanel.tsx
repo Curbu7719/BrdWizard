@@ -13,10 +13,11 @@ interface ReviewPanelProps {
   generalWarnings: BrdWarning[];
   onSubmit: () => void;
   onAcknowledge: (id: string) => void;
+  onReject?: (id: string) => void;
 }
 
 export function ReviewPanel({
-  stage, busy, canSubmit, openCount, totalCount, generalWarnings, onSubmit, onAcknowledge,
+  stage, busy, canSubmit, openCount, totalCount, generalWarnings, onSubmit, onAcknowledge, onReject,
 }: ReviewPanelProps) {
   const running = stage === 'compliance_running' || stage === 'maturity_running' || stage === 'compliance_done';
 
@@ -73,7 +74,7 @@ export function ReviewPanel({
           {generalWarnings.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-muted-foreground">General findings</p>
-              <WarningList warnings={generalWarnings} onAcknowledge={onAcknowledge} />
+              <WarningList warnings={generalWarnings} onAcknowledge={onAcknowledge} onReject={onReject} />
             </div>
           )}
 

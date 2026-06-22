@@ -22,6 +22,7 @@ interface SectionAccordionProps {
   /** All review findings for this BRD (filtered per section/story here). */
   warnings?: BrdWarning[];
   onAcknowledgeWarning?: (id: string) => void;
+  onRejectWarning?: (id: string) => void;
 }
 
 function SectionStatusIcon({ status }: { status: SectionStatus }) {
@@ -30,7 +31,7 @@ function SectionStatusIcon({ status }: { status: SectionStatus }) {
   return <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/40 inline-block" aria-label="Pending" />;
 }
 
-export function SectionAccordion({ section, epics = [], stories = [], onRevise, onInlineSave, onEditStory, warnings = [], onAcknowledgeWarning }: SectionAccordionProps) {
+export function SectionAccordion({ section, epics = [], stories = [], onRevise, onInlineSave, onEditStory, warnings = [], onAcknowledgeWarning, onRejectWarning }: SectionAccordionProps) {
   const [open, setOpen] = useState(section.status === 'approved' || section.status === 'in_progress');
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(section.content_full ?? '');
@@ -107,7 +108,7 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
       {open && (
         <div id={`section-${section.id}`} className="px-4 pb-4 space-y-3">
           {sectionWarnings.length > 0 && onAcknowledgeWarning && (
-            <WarningList warnings={sectionWarnings} onAcknowledge={onAcknowledgeWarning} />
+            <WarningList warnings={sectionWarnings} onAcknowledge={onAcknowledgeWarning} onReject={onRejectWarning} />
           )}
           {!isEpics && !editing && section.content_full && (
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{section.content_full}</p>
@@ -164,6 +165,7 @@ export function SectionAccordion({ section, epics = [], stories = [], onRevise, 
                     onEditStory={onEditStory}
                     warnings={warnings}
                     onAcknowledgeWarning={onAcknowledgeWarning}
+                    onRejectWarning={onRejectWarning}
                   />
                 ))
               )}

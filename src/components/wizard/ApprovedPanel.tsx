@@ -31,6 +31,7 @@ interface ApprovedPanelProps {
   canSubmitReview: boolean;
   onSubmitReview: () => void;
   onAcknowledgeWarning: (id: string) => void;
+  onRejectWarning?: (id: string) => void;
   onGenerateBrd: () => void;
   generating: boolean;
   /** Live readiness score (0-100), recomputed by the parent. */
@@ -55,6 +56,7 @@ export function ApprovedPanel({
   canSubmitReview,
   onSubmitReview,
   onAcknowledgeWarning,
+  onRejectWarning,
   onGenerateBrd,
   generating,
   score,
@@ -79,6 +81,7 @@ export function ApprovedPanel({
       onEditStory={onEditStory}
       warnings={warnings}
       onAcknowledgeWarning={onAcknowledgeWarning}
+      onRejectWarning={onRejectWarning}
     />
   );
 
@@ -133,6 +136,7 @@ export function ApprovedPanel({
             generalWarnings={generalWarnings}
             onSubmit={onSubmitReview}
             onAcknowledge={onAcknowledgeWarning}
+            onReject={onRejectWarning}
           />
         )}
 

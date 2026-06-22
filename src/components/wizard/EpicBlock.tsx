@@ -10,9 +10,10 @@ interface EpicBlockProps {
   /** Review findings across this BRD (filtered per story below). */
   warnings?: BrdWarning[];
   onAcknowledgeWarning?: (id: string) => void;
+  onRejectWarning?: (id: string) => void;
 }
 
-export function EpicBlock({ epic, stories, onEditStory, warnings = [], onAcknowledgeWarning }: EpicBlockProps) {
+export function EpicBlock({ epic, stories, onEditStory, warnings = [], onAcknowledgeWarning, onRejectWarning }: EpicBlockProps) {
   const allApproved = stories.length > 0 && stories.every(s => s.is_approved);
 
   return (
@@ -40,6 +41,7 @@ export function EpicBlock({ epic, stories, onEditStory, warnings = [], onAcknowl
               onEdit={onEditStory}
               warnings={warnings.filter(w => w.target_story_id === story.id)}
               onAcknowledgeWarning={onAcknowledgeWarning}
+              onRejectWarning={onRejectWarning}
             />
           ))}
         </ul>

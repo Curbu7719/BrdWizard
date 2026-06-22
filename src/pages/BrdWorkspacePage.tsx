@@ -59,6 +59,7 @@ export default function BrdWorkspacePage() {
     busy: reviewBusy,
     submitForReview,
     acknowledge: acknowledgeWarning,
+    reject: rejectWarning,
   } = useReview(id!, brd?.review_stage ?? 'none');
 
   const [contextPct, setContextPct] = useState<number | undefined>(undefined);
@@ -420,6 +421,12 @@ export default function BrdWorkspacePage() {
     void loadSections();
   }
 
+  // Rejecting a finding records it as 'rejected'; it is listed in the BRD's
+  // "Rejected Findings" section on export. No change to the story/section text.
+  async function handleRejectWarning(id: string) {
+    await rejectWarning(id);
+  }
+
   async function handleRemoveStory(storyId: string) {
     await removeStory(storyId);
     void loadSections();
@@ -510,7 +517,7 @@ export default function BrdWorkspacePage() {
     try {
       // Build the .docx in the browser (the edge runtime can't run docx's Packer).
       // Workspace already has the data loaded, so pass it in (no refetch).
-      await exportBrdToWord(brd, { sections, epics, stories, score: scoreDialog.score?.score });
+      await exportBrdToWord(brd, { sections, epics, stories, warnings, score: scoreDialog.score?.score });
       toast({ title: 'BRD exported successfully', variant: 'default' });
     } catch (err) {
       toast({ title: 'Export failed', description: (err as Error).message, variant: 'destructive' });
@@ -660,6 +667,7 @@ export default function BrdWorkspacePage() {
             canSubmitReview={sections.length > 0 && sections.every(s => s.status === 'approved')}
             onSubmitReview={handleSubmitReview}
             onAcknowledgeWarning={handleAcknowledgeWarning}
+            onRejectWarning={handleRejectWarning}
             onGenerateBrd={() => doExport(false)}
             generating={generating}
             score={liveScore?.score ?? null}

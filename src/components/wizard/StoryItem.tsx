@@ -16,9 +16,10 @@ interface StoryItemProps {
   /** Review findings attached to this story. */
   warnings?: BrdWarning[];
   onAcknowledgeWarning?: (id: string) => void;
+  onRejectWarning?: (id: string) => void;
 }
 
-export function StoryItem({ story, index, className, onEdit, warnings = [], onAcknowledgeWarning }: StoryItemProps) {
+export function StoryItem({ story, index, className, onEdit, warnings = [], onAcknowledgeWarning, onRejectWarning }: StoryItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(story.full_text);
   const [saving, setSaving] = useState(false);
@@ -111,7 +112,7 @@ export function StoryItem({ story, index, className, onEdit, warnings = [], onAc
         )}
       </div>
       {warnings.length > 0 && onAcknowledgeWarning && (
-        <WarningList warnings={warnings} onAcknowledge={onAcknowledgeWarning} className="mt-1.5 ml-6" />
+        <WarningList warnings={warnings} onAcknowledge={onAcknowledgeWarning} onReject={onRejectWarning} className="mt-1.5 ml-6" />
       )}
     </li>
   );
