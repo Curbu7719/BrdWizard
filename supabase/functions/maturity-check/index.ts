@@ -1,12 +1,16 @@
 /**
- * /maturity-check — synchronous final review of the whole BRD for contradictions
- * and clarity/completeness gaps. Runs AFTER compliance is done.
+ * /maturity-check — synchronous review of the whole BRD for contradictions and
+ * clarity/completeness gaps. Independent of compliance findings, so the client
+ * runs it CONCURRENTLY with /compliance-submit (both are stateless workers).
  *
  * One LLM call over the entire BRD; warnings (source='maturity') are inserted
- * into brd_warnings and review_stage advances to 'maturity_done'.
+ * into brd_warnings. The client owns review_stage and advances it to
+ * 'maturity_done' once both workers finish. Cancellation is cooperative — if
+ * review_stage is no longer 'compliance_running' when the result is ready, it is
+ * discarded.
  *
  * Method: POST   Auth: required (owner)   Body: { brd_id }
- * Returns: { review_stage, inserted }
+ * Returns: { inserted } | { cancelled } | { error }
  */
 
 import { corsPreflightResponse, withCors } from '../_shared/cors.ts';
@@ -68,11 +72,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     stories.map((s) => s.id),
   );
 
-  await db
-    .from('brd_documents')
-    .update({ review_stage: 'maturity_running', updated_at: new Date().toISOString() })
-    .eq('id', brdId);
-
   const llm = createLLMProvider(settings.ai_model_id);
   let result;
   try {
@@ -82,23 +81,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   } catch (err) {
     console.error('[maturity-check] LLM call failed:', err);
-    // Roll back to compliance_done so the user can retry.
-    await db
-      .from('brd_documents')
-      .update({ review_stage: 'compliance_done', updated_at: new Date().toISOString() })
-      .eq('id', brdId);
+    // The client owns the stage and recovers; just surface the error.
     return json({ error: 'Maturity check failed' }, 502);
   }
 
   // Cooperative cancel: while the LLM call ran (the slow part) the user may have
-  // cancelled, which resets review_stage away from 'maturity_running'. If so,
-  // discard the results and do not advance the stage.
+  // cancelled, which resets review_stage away from 'compliance_running' (the
+  // single combined review phase). If so, discard the results.
   const { data: cur } = await db
     .from('brd_documents')
     .select('review_stage')
     .eq('id', brdId)
     .single();
-  if (cur?.review_stage !== 'maturity_running') {
+  if (cur?.review_stage !== 'compliance_running') {
     return json({ review_stage: cur?.review_stage ?? 'none', cancelled: true });
   }
 
@@ -123,10 +118,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (insErr) console.error('[maturity-check] insert warnings failed:', insErr);
   }
 
-  await db
-    .from('brd_documents')
-    .update({ review_stage: 'maturity_done', updated_at: new Date().toISOString() })
-    .eq('id', brdId);
-
-  return json({ review_stage: 'maturity_done', inserted: warnings.length });
+  // Stage is owned by the client, which advances to 'maturity_done' once both
+  // compliance and maturity finish.
+  return json({ inserted: warnings.length });
 });

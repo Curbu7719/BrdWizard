@@ -4,23 +4,22 @@ import { callEdgeFunction } from '../lib/sse';
 import type { BrdWarning, ReviewStage } from '../types/brd';
 
 /**
- * Drives the post-authoring review pipeline for one BRD:
- *   submit → compliance (3 lenses, synchronous + parallel) → maturity → done.
- * Both compliance and maturity now run as synchronous edge calls (no Batch API,
- * no polling). Also loads the resulting warnings and lets the user acknowledge
- * or reject them.
+ * Drives the post-authoring review pipeline for one BRD. Compliance (3 lenses)
+ * and maturity are independent, so they run as CONCURRENT synchronous edge calls
+ * (no Batch API, no polling) — total time is the slower of the two, not their
+ * sum. While they run, review_stage stays 'compliance_running' (the single
+ * combined phase); the client advances it to 'maturity_done' once both finish.
+ * Also loads the resulting warnings and lets the user acknowledge or reject them.
  */
 export function useReview(brdId: string, initialStage: ReviewStage) {
   const [warnings, setWarnings] = useState<BrdWarning[]>([]);
   const [stage, setStage] = useState<ReviewStage>(initialStage);
   const [busy, setBusy] = useState(false);
-  // Guards the maturity auto-resume so it fires at most once per mount.
-  const maturityResumedRef = useRef(false);
-  // Guards the compliance auto-resume so it fires at most once per mount.
-  const complianceResumedRef = useRef(false);
-  // Aborts the in-flight review request when the user cancels.
+  // Guards the auto-resume so it fires at most once per mount.
+  const resumedRef = useRef(false);
+  // Aborts the in-flight review requests when the user cancels.
   const abortRef = useRef<AbortController | null>(null);
-  // Set true by cancelReview so the chain stops advancing the stage.
+  // Set true by cancelReview so the run stops advancing the stage.
   const cancelledRef = useRef(false);
 
   const loadWarnings = useCallback(async () => {
@@ -37,74 +36,72 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
   // Re-seed local stage when the BRD row (re)loads.
   useEffect(() => { setStage(initialStage); }, [initialStage]);
 
-  const runMaturity = useCallback(async () => {
-    setStage('maturity_running');
-    const { data } = await callEdgeFunction<{ review_stage: ReviewStage }>(
-      'maturity-check',
-      { brd_id: brdId },
-      abortRef.current?.signal,
-    );
-    if (cancelledRef.current) return;
-    if (data?.review_stage) setStage(data.review_stage);
-    await loadWarnings();
-  }, [brdId, loadWarnings]);
-
-  // Run the synchronous compliance review (3 lenses in parallel server-side),
-  // then chain into maturity. Surfaces an error without advancing on failure.
-  const runCompliance = useCallback(async () => {
+  // Run compliance and maturity CONCURRENTLY. Both are stateless workers that
+  // only insert findings; the client owns review_stage. We arm the cancel gate
+  // by persisting 'compliance_running' first, then fire both, then advance to
+  // 'maturity_done' once both settle (unless cancelled or both failed).
+  const runReview = useCallback(async () => {
     cancelledRef.current = false;
     abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
     setStage('compliance_running');
-    const { data, error } = await callEdgeFunction<{ review_stage: ReviewStage }>(
-      'compliance-submit',
-      { brd_id: brdId },
-      abortRef.current.signal,
-    );
+    const { error: stageErr } = await supabase
+      .from('brd_documents')
+      .update({
+        review_stage: 'compliance_running',
+        compliance_batch_id: null,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', brdId);
+    if (stageErr) { setStage('none'); return { error: stageErr.message }; }
+
+    const [comp, mat] = await Promise.all([
+      callEdgeFunction<{ inserted?: number; cancelled?: boolean }>('compliance-submit', { brd_id: brdId }, signal),
+      callEdgeFunction<{ inserted?: number; cancelled?: boolean }>('maturity-check', { brd_id: brdId }, signal),
+    ]);
+
     // Cancelled mid-flight — cancelReview already reset the stage; stay quiet.
     if (cancelledRef.current) return { error: null };
-    if (error || data?.review_stage !== 'compliance_done') {
-      // compliance-submit rolled the stage back to 'none' on total failure.
+
+    // Both workers failed — nothing to show; reset so the user can retry.
+    if (comp.error && mat.error) {
       setStage('none');
-      return { error: error ?? 'Compliance review failed' };
+      await supabase
+        .from('brd_documents')
+        .update({ review_stage: 'none', updated_at: new Date().toISOString() })
+        .eq('id', brdId);
+      return { error: comp.error ?? mat.error };
     }
-    setStage('compliance_done');
+
+    // Done — mark terminal and load whatever findings landed.
+    await supabase
+      .from('brd_documents')
+      .update({ review_stage: 'maturity_done', updated_at: new Date().toISOString() })
+      .eq('id', brdId);
+    setStage('maturity_done');
     await loadWarnings();
-    if (cancelledRef.current) return { error: null };
-    await runMaturity();
     return { error: null };
-  }, [brdId, loadWarnings, runMaturity]);
+  }, [brdId, loadWarnings]);
 
-  // Resume a compliance step left mid-flight. Compliance runs as a single
-  // synchronous edge call now; if the user navigated away while it was running,
-  // the BRD is left at 'compliance_running' with no one to finish it. Re-run it
-  // once on load — compliance-submit clears and re-inserts, so it is idempotent.
+  // Resume a review left mid-flight. If the user navigated away while it ran, the
+  // BRD is left at 'compliance_running' with no one to finish it. Re-run once on
+  // load — the workers clear and re-insert their findings, so it is idempotent.
   useEffect(() => {
-    if (initialStage === 'compliance_running' && !complianceResumedRef.current) {
-      complianceResumedRef.current = true;
-      void runCompliance();
+    if (initialStage === 'compliance_running' && !resumedRef.current) {
+      resumedRef.current = true;
+      void runReview();
     }
-  }, [initialStage, runCompliance]);
-
-  // Resume a stuck maturity step. Maturity runs as a single synchronous edge
-  // call (no polling), so if the user navigated away while it was mid-flight the
-  // BRD can be left at 'maturity_running' with no one to finish it. When we load
-  // a BRD already in that state, re-run maturity once — the edge function
-  // replaces maturity findings, so re-running is safe (idempotent end state).
-  useEffect(() => {
-    if (initialStage === 'maturity_running' && !maturityResumedRef.current) {
-      maturityResumedRef.current = true;
-      void runMaturity();
-    }
-  }, [initialStage, runMaturity]);
+  }, [initialStage, runReview]);
 
   const submitForReview = useCallback(async () => {
     setBusy(true);
     // Fresh run — drop any previously-loaded warnings from the UI.
     setWarnings([]);
-    const { error } = await runCompliance();
+    const { error } = await runReview();
     setBusy(false);
     return { error };
-  }, [runCompliance]);
+  }, [runReview]);
 
   // Cancel an in-progress review. Aborts the in-flight request and resets the
   // persisted stage to 'none' so the BRD isn't left mid-review. The edge

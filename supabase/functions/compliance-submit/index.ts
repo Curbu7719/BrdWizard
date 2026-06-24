@@ -3,15 +3,13 @@
  *
  * Runs THREE lens reviews (KVKK, Data Privacy, Regulation) in PARALLEL as normal
  * (non-batch) LLM calls, parses each into warnings keyed to section_key / story_id,
- * inserts them, and advances review_stage straight to 'compliance_done'. The client
- * then chains into /maturity-check.
- *
- * Previously this used the Anthropic Batch API (async, polled via /review-status),
- * which for a single 3-request review sat queued for minutes-to-hours and read as
- * "never completes". Three parallel synchronous calls finish in seconds.
+ * and inserts them. This is a stateless worker: the CLIENT owns review_stage and
+ * runs this concurrently with /maturity-check, advancing to 'maturity_done' once
+ * both finish. Cancellation is cooperative — if review_stage is no longer
+ * 'compliance_running' when results are ready, they are discarded.
  *
  * Method: POST   Auth: required (owner)   Body: { brd_id }
- * Returns: { review_stage, inserted }
+ * Returns: { inserted } | { cancelled } | { error }
  */
 
 import { corsPreflightResponse, withCors } from '../_shared/cors.ts';
@@ -81,17 +79,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   );
   const userContent = `${reviewText}\n${formatBlock}`;
 
-  // Mark running so a mid-flight reload knows a review is in progress.
-  await db
-    .from('brd_documents')
-    .update({
-      review_stage: 'compliance_running',
-      compliance_batch_id: null,
-      submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', brdId);
-
   const llm = createLLMProvider(settings.ai_model_id);
 
   // Run the three lenses in parallel; one lens failing must not sink the others.
@@ -129,18 +116,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
   });
 
-  // Every lens failed — roll back so the user can retry, surface the error.
+  // Every lens failed — surface the error; the client owns the stage and decides
+  // how to recover (it runs compliance and maturity in parallel).
   if (failed === LENSES.length) {
-    await db
-      .from('brd_documents')
-      .update({ review_stage: 'none', updated_at: new Date().toISOString() })
-      .eq('id', brdId);
     return json({ error: 'Compliance review failed' }, 502);
   }
 
   // Cooperative cancel: while the lenses ran (the slow part) the user may have
   // cancelled, which resets review_stage away from 'compliance_running'. If so,
-  // discard the results and do not advance the stage.
+  // discard the results.
   const { data: cur } = await db
     .from('brd_documents')
     .select('review_stage')
@@ -162,10 +146,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (insErr) console.error('[compliance-submit] insert warnings failed:', insErr);
   }
 
-  await db
-    .from('brd_documents')
-    .update({ review_stage: 'compliance_done', updated_at: new Date().toISOString() })
-    .eq('id', brdId);
-
-  return json({ review_stage: 'compliance_done', inserted: rows.length });
+  // Stage is owned by the client (which advances to 'maturity_done' once both
+  // compliance and maturity finish), so we only report what we inserted.
+  return json({ inserted: rows.length });
 });

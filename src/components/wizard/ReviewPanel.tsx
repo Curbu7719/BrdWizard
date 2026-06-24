@@ -33,8 +33,8 @@ export function ReviewPanel({
       {stage === 'none' && (
         <>
           <p className="text-xs text-muted-foreground">
-            Submit the finished BRD for KVKK, Data Privacy and Regulation review (Batch API),
-            followed by a maturity check for contradictions and clarity. Findings appear on the
+            Submit the finished BRD for KVKK, Data Privacy and Regulation review, plus a maturity
+            check for contradictions and clarity — all run in parallel. Findings appear on the
             relevant sections and user stories.
           </p>
           <Button size="sm" onClick={onSubmit} disabled={!canSubmit || busy} loading={busy}>
@@ -50,10 +50,7 @@ export function ReviewPanel({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin text-accent" aria-hidden="true" />
-            <span>
-              {stage === 'compliance_running' && 'Compliance review in progress (KVKK, Data Privacy, Regulation)…'}
-              {(stage === 'compliance_done' || stage === 'maturity_running') && 'Running maturity check…'}
-            </span>
+            <span>Review in progress — compliance (KVKK, Data Privacy, Regulation) and maturity…</span>
           </div>
           {onCancel && (
             <Button size="sm" variant="outline" onClick={onCancel}>
