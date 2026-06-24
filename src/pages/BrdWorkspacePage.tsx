@@ -58,6 +58,7 @@ export default function BrdWorkspacePage() {
     stage: reviewStage,
     busy: reviewBusy,
     submitForReview,
+    cancelReview,
     acknowledge: acknowledgeWarning,
     reject: rejectWarning,
   } = useReview(id!, brd?.review_stage ?? 'none');
@@ -467,6 +468,12 @@ export default function BrdWorkspacePage() {
     void refetchBrd();
   }
 
+  async function handleCancelReview() {
+    await cancelReview();
+    toast({ title: 'Review cancelled' });
+    void refetchBrd();
+  }
+
   async function handleTitleChange(newTitle: string) {
     if (!brd) return;
     const { error } = await updateBrd(brd.id, { title: newTitle });
@@ -666,6 +673,7 @@ export default function BrdWorkspacePage() {
             reviewBusy={reviewBusy}
             canSubmitReview={sections.length > 0 && sections.every(s => s.status === 'approved')}
             onSubmitReview={handleSubmitReview}
+            onCancelReview={handleCancelReview}
             onAcknowledgeWarning={handleAcknowledgeWarning}
             onRejectWarning={handleRejectWarning}
             onGenerateBrd={() => doExport(false)}

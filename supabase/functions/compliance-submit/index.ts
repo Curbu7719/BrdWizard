@@ -138,6 +138,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: 'Compliance review failed' }, 502);
   }
 
+  // Cooperative cancel: while the lenses ran (the slow part) the user may have
+  // cancelled, which resets review_stage away from 'compliance_running'. If so,
+  // discard the results and do not advance the stage.
+  const { data: cur } = await db
+    .from('brd_documents')
+    .select('review_stage')
+    .eq('id', brdId)
+    .single();
+  if (cur?.review_stage !== 'compliance_running') {
+    return json({ review_stage: cur?.review_stage ?? 'none', cancelled: true });
+  }
+
   // Fresh run — clear previous compliance warnings before inserting new ones.
   await db
     .from('brd_warnings')

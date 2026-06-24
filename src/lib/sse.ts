@@ -100,10 +100,12 @@ export async function streamChat(opts: StreamChatOptions): Promise<void> {
   }
 }
 
-/** POST to a Supabase edge function with auth header, return JSON. */
+/** POST to a Supabase edge function with auth header, return JSON.
+ *  Pass an AbortSignal to make the request cancellable. */
 export async function callEdgeFunction<T>(
   functionName: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<{ data: T | null; error: string | null }> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return { data: null, error: 'Not authenticated' };
@@ -119,6 +121,7 @@ export async function callEdgeFunction<T>(
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify(body),
+      signal,
     });
     if (!res.ok) {
       // Surface the backend's JSON { error } message instead of a bare status.

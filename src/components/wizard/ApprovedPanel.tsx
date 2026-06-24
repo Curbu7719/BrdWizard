@@ -30,6 +30,7 @@ interface ApprovedPanelProps {
   reviewBusy: boolean;
   canSubmitReview: boolean;
   onSubmitReview: () => void;
+  onCancelReview?: () => void;
   onAcknowledgeWarning: (id: string) => void;
   onRejectWarning?: (id: string) => void;
   onGenerateBrd: () => void;
@@ -55,6 +56,7 @@ export function ApprovedPanel({
   reviewBusy,
   canSubmitReview,
   onSubmitReview,
+  onCancelReview,
   onAcknowledgeWarning,
   onRejectWarning,
   onGenerateBrd,
@@ -135,6 +137,7 @@ export function ApprovedPanel({
             totalCount={warnings.length}
             generalWarnings={generalWarnings}
             onSubmit={onSubmitReview}
+            onCancel={onCancelReview}
             onAcknowledge={onAcknowledgeWarning}
             onReject={onRejectWarning}
           />

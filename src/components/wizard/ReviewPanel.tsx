@@ -12,12 +12,14 @@ interface ReviewPanelProps {
   /** BRD-level findings (target_type === 'brd') not tied to a section or story. */
   generalWarnings: BrdWarning[];
   onSubmit: () => void;
+  /** Cancel an in-progress review (shown only while running). */
+  onCancel?: () => void;
   onAcknowledge: (id: string) => void;
   onReject?: (id: string) => void;
 }
 
 export function ReviewPanel({
-  stage, busy, canSubmit, openCount, totalCount, generalWarnings, onSubmit, onAcknowledge, onReject,
+  stage, busy, canSubmit, openCount, totalCount, generalWarnings, onSubmit, onCancel, onAcknowledge, onReject,
 }: ReviewPanelProps) {
   const running = stage === 'compliance_running' || stage === 'maturity_running' || stage === 'compliance_done';
 
@@ -45,12 +47,19 @@ export function ReviewPanel({
       )}
 
       {running && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin text-accent" aria-hidden="true" />
-          <span>
-            {stage === 'compliance_running' && 'Compliance review in progress (KVKK, Data Privacy, Regulation)…'}
-            {(stage === 'compliance_done' || stage === 'maturity_running') && 'Running maturity check…'}
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-accent" aria-hidden="true" />
+            <span>
+              {stage === 'compliance_running' && 'Compliance review in progress (KVKK, Data Privacy, Regulation)…'}
+              {(stage === 'compliance_done' || stage === 'maturity_running') && 'Running maturity check…'}
+            </span>
+          </div>
+          {onCancel && (
+            <Button size="sm" variant="outline" onClick={onCancel}>
+              Cancel review
+            </Button>
+          )}
         </div>
       )}
 

@@ -18,6 +18,10 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
   const maturityResumedRef = useRef(false);
   // Guards the compliance auto-resume so it fires at most once per mount.
   const complianceResumedRef = useRef(false);
+  // Aborts the in-flight review request when the user cancels.
+  const abortRef = useRef<AbortController | null>(null);
+  // Set true by cancelReview so the chain stops advancing the stage.
+  const cancelledRef = useRef(false);
 
   const loadWarnings = useCallback(async () => {
     const { data } = await supabase
@@ -38,7 +42,9 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
     const { data } = await callEdgeFunction<{ review_stage: ReviewStage }>(
       'maturity-check',
       { brd_id: brdId },
+      abortRef.current?.signal,
     );
+    if (cancelledRef.current) return;
     if (data?.review_stage) setStage(data.review_stage);
     await loadWarnings();
   }, [brdId, loadWarnings]);
@@ -46,11 +52,16 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
   // Run the synchronous compliance review (3 lenses in parallel server-side),
   // then chain into maturity. Surfaces an error without advancing on failure.
   const runCompliance = useCallback(async () => {
+    cancelledRef.current = false;
+    abortRef.current = new AbortController();
     setStage('compliance_running');
     const { data, error } = await callEdgeFunction<{ review_stage: ReviewStage }>(
       'compliance-submit',
       { brd_id: brdId },
+      abortRef.current.signal,
     );
+    // Cancelled mid-flight — cancelReview already reset the stage; stay quiet.
+    if (cancelledRef.current) return { error: null };
     if (error || data?.review_stage !== 'compliance_done') {
       // compliance-submit rolled the stage back to 'none' on total failure.
       setStage('none');
@@ -58,6 +69,7 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
     }
     setStage('compliance_done');
     await loadWarnings();
+    if (cancelledRef.current) return { error: null };
     await runMaturity();
     return { error: null };
   }, [brdId, loadWarnings, runMaturity]);
@@ -94,6 +106,24 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
     return { error };
   }, [runCompliance]);
 
+  // Cancel an in-progress review. Aborts the in-flight request and resets the
+  // persisted stage to 'none' so the BRD isn't left mid-review. The edge
+  // functions re-check review_stage before writing, so a server call that is
+  // still running discards its results instead of advancing the stage.
+  const cancelReview = useCallback(async () => {
+    cancelledRef.current = true;
+    abortRef.current?.abort();
+    await supabase
+      .from('brd_documents')
+      .update({ review_stage: 'none', compliance_batch_id: null, updated_at: new Date().toISOString() })
+      .eq('id', brdId);
+    // Discard any partial findings from the cancelled run.
+    await supabase.from('brd_warnings').delete().eq('brd_id', brdId);
+    setWarnings([]);
+    setStage('none');
+    setBusy(false);
+  }, [brdId]);
+
   const acknowledge = useCallback(async (id: string) => {
     await supabase.from('brd_warnings').update({ status: 'acknowledged' }).eq('id', id);
     setWarnings(prev => prev.map(w => (w.id === id ? { ...w, status: 'acknowledged' } : w)));
@@ -108,5 +138,5 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
 
   const openCount = warnings.filter(w => w.status === 'open').length;
 
-  return { warnings, stage, busy, openCount, submitForReview, acknowledge, reject, reload: loadWarnings };
+  return { warnings, stage, busy, openCount, submitForReview, cancelReview, acknowledge, reject, reload: loadWarnings };
 }
