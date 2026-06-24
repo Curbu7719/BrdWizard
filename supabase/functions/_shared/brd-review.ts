@@ -95,13 +95,18 @@ export function buildReviewText(
   }
 
   const epicsOverview = sections.find((s) => s.section_key === 'epics_overview');
-  lines.push('## Section: Epics Overview (section_key: epics_overview)');
+  // Epics live under the "Epics Overview" section; its document number is the
+  // count of named sections + 1. Story numbers are <epics>.<epic>.<story>, the
+  // SAME scheme exportDocx uses, so cross-references line up with the document.
+  const epicsSectionNumber = named.length + 1;
+  lines.push(`## Section: Epics Overview (section_key: epics_overview)`);
   if (epicsOverview?.content_full?.trim()) lines.push(epicsOverview.content_full.trim());
   lines.push('');
 
   const sortedEpics = [...epics].sort((a, b) => a.sort_order - b.sort_order);
-  for (const epic of sortedEpics) {
-    lines.push(`### Epic: ${epic.title}`);
+  sortedEpics.forEach((epic, ei) => {
+    const epicNo = `${epicsSectionNumber}.${ei + 1}`;
+    lines.push(`### Epic ${epicNo}: ${epic.title}`);
     if (epic.description?.trim()) lines.push(epic.description.trim());
     const epicStories = stories
       .filter((st) => st.epic_id === epic.id)
@@ -109,15 +114,15 @@ export function buildReviewText(
     if (epicStories.length === 0) {
       lines.push('(no user stories)');
     } else {
-      for (const st of epicStories) {
-        lines.push(`- Story [story_id: ${st.id}]:`);
+      epicStories.forEach((st, si) => {
+        lines.push(`- Story ${epicNo}.${si + 1} [story_id: ${st.id}]:`);
         for (const l of (st.full_text ?? '').split('\n')) {
           if (l.trim()) lines.push(`    ${l.trim()}`);
         }
-      }
+      });
     }
     lines.push('');
-  }
+  });
 
   return lines.join('\n');
 }
@@ -145,6 +150,7 @@ export function outputFormatInstructions(
     '- For target_type "story", set story_id to EXACTLY one of these UUIDs: ' + (validStoryIds.join(', ') || '(none)') + '.',
     '- severity is one of: info, warning, critical (for maturity you may also use: contradiction, unclear).',
     '- message and recommendation are plain text in the BRD content language.',
+    '- When you refer to a user story inside message or recommendation text, cite it by its DOCUMENT NUMBER (e.g. "Story 3.1.2"), shown next to each story — NEVER by its story_id/UUID. The reader cannot resolve UUIDs.',
     '- If there are no issues, return {"warnings":[]}.',
     '- Do NOT include any text before or after the JSON object.',
   ].join('\n');

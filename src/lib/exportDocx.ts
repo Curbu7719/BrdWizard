@@ -198,17 +198,27 @@ function epicBlock(
     paragraphs.push(
       new Paragraph({ text: 'User Stories:', heading: HeadingLevel.HEADING_3 }),
     );
-    for (const story of epicStories) {
+    epicStories.forEach((story, storyIdx) => {
       // full_text is multi-line: headline, then "Acceptance Criteria:" + "- " bullets.
       const lines = (story.full_text ?? '')
         .split('\n')
         .map((l) => l.trim())
         .filter((l) => l.length > 0);
-      if (lines.length === 0) continue;
+      if (lines.length === 0) return;
 
-      // Headline as a top-level bullet.
+      // Document number — <epics>.<epic>.<story>, the SAME scheme buildReviewText
+      // feeds the reviewer, so finding cross-references resolve to this story.
+      const storyNo = `${parentNumber}.${epicNumber}.${storyIdx + 1}`;
+
+      // Headline as a top-level bullet, prefixed with its document number.
       paragraphs.push(
-        new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: lines[0] })] }),
+        new Paragraph({
+          bullet: { level: 0 },
+          children: [
+            new TextRun({ text: `${storyNo}  `, bold: true }),
+            new TextRun({ text: lines[0] }),
+          ],
+        }),
       );
 
       // Remaining lines = acceptance criteria.
@@ -232,7 +242,7 @@ function epicBlock(
 
       // All findings for this story (accepted / open / rejected), under its criteria.
       paragraphs.push(...storyFindings(story, warnings));
-    }
+    });
   }
 
   paragraphs.push(spacer());
