@@ -21,6 +21,7 @@ import {
 import type { BrdDocument, BrdSection, Epic, UserStory, BrdWarning, WarningSource } from '../types/brd';
 import { supabase } from './supabase';
 import { logGeneration } from './sse';
+import { buildReviewNumbers } from './storyNumbering';
 
 const WARNING_SOURCE_LABEL: Record<WarningSource, string> = {
   kvkk: 'KVKK',
@@ -171,6 +172,7 @@ function epicBlock(
   epicNumber: number,
   parentNumber: number,
   warnings: BrdWarning[],
+  storyNumbers: Map<string, string>,
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [
     new Paragraph({
@@ -206,9 +208,9 @@ function epicBlock(
         .filter((l) => l.length > 0);
       if (lines.length === 0) return;
 
-      // Document number — <epics>.<epic>.<story>, the SAME scheme buildReviewText
-      // feeds the reviewer, so finding cross-references resolve to this story.
-      const storyNo = `${parentNumber}.${epicNumber}.${storyIdx + 1}`;
+      // Document number — shared with the UI and the reviewer input so finding
+      // cross-references resolve to this story.
+      const storyNo = storyNumbers.get(story.id) ?? `${parentNumber}.${epicNumber}.${storyIdx + 1}`;
 
       // Headline as a top-level bullet, prefixed with its document number.
       paragraphs.push(
@@ -333,10 +335,11 @@ export async function buildBrdDocxBlob({ brd, sections, epics, stories, warnings
   }
 
   // Per-epic sub-sections (ordered). Accepted findings render under their story.
+  const { storyNumbers } = buildReviewNumbers(sections, epics, stories);
   [...epics]
     .sort((a, b) => a.sort_order - b.sort_order)
     .forEach((epic, idx) => {
-      children.push(...epicBlock(epic, stories, idx + 1, epicsSectionNumber, warnings));
+      children.push(...epicBlock(epic, stories, idx + 1, epicsSectionNumber, warnings, storyNumbers));
     });
 
   // Reports, then Notes (user-authored), if provided.

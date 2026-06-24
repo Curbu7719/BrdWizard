@@ -10,6 +10,9 @@ interface StoryItemProps {
   story: UserStory;
   /** 1-based position within its epic, shown as a leading number. */
   index?: number;
+  /** Document number (e.g. "3.1.2"); shown instead of index when provided so the
+   *  UI matches the exported BRD and review cross-references. */
+  label?: string;
   className?: string;
   /** When provided, the story becomes editable in place (right panel). */
   onEdit?: (storyId: string, text: string) => void | Promise<void>;
@@ -19,7 +22,7 @@ interface StoryItemProps {
   onRejectWarning?: (id: string) => void;
 }
 
-export function StoryItem({ story, index, className, onEdit, warnings = [], onAcknowledgeWarning, onRejectWarning }: StoryItemProps) {
+export function StoryItem({ story, index, label, className, onEdit, warnings = [], onAcknowledgeWarning, onRejectWarning }: StoryItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(story.full_text);
   const [saving, setSaving] = useState(false);
@@ -79,9 +82,9 @@ export function StoryItem({ story, index, className, onEdit, warnings = [], onAc
   return (
     <li className={cn('py-1.5 text-sm', className)}>
       <div className="group flex gap-2 items-start">
-        {index !== undefined && (
-          <span className="shrink-0 mt-0.5 w-5 text-right text-xs font-medium text-muted-foreground tabular-nums">
-            {index}.
+        {(label ?? (index !== undefined ? `${index}.` : null)) && (
+          <span className="shrink-0 mt-0.5 text-right text-xs font-semibold text-muted-foreground tabular-nums">
+            {label ?? `${index}.`}
           </span>
         )}
         <span className="shrink-0 mt-0.5">

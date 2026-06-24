@@ -4,6 +4,7 @@ import { ReviewPanel } from './ReviewPanel';
 import { Button } from '../ui/button';
 import { Spinner } from '../shared/Spinner';
 import { cn } from '../../lib/utils';
+import { buildReviewNumbers } from '../../lib/storyNumbering';
 import type { BrdSection, Epic, UserStory, BrdWarning, ReviewStage } from '../../types/brd';
 
 interface ApprovedPanelProps {
@@ -66,6 +67,10 @@ export function ApprovedPanel({
   const generalWarnings = warnings.filter(w => w.target_type === 'brd');
   const openCount = warnings.filter(w => w.status === 'open').length;
 
+  // Document numbers (e.g. epic "3.1", story "3.1.2") — same scheme as the
+  // exported BRD and the reviewer input, so cross-references line up.
+  const { epicNumbers, storyNumbers } = buildReviewNumbers(sections, epics, stories);
+
   // Right-panel order: Background, Objective, [Expected Value], Epics, User
   // Stories, [Notes], [Reports]. Expected Value sits right after Objective, so we
   // split the section list into the intro sections and everything after.
@@ -84,6 +89,8 @@ export function ApprovedPanel({
       warnings={warnings}
       onAcknowledgeWarning={onAcknowledgeWarning}
       onRejectWarning={onRejectWarning}
+      epicNumbers={epicNumbers}
+      storyNumbers={storyNumbers}
     />
   );
 
