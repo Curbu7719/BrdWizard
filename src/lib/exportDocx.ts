@@ -117,11 +117,30 @@ function sectionBlock(section: BrdSection, number: number): Paragraph[] {
   return paragraphs;
 }
 
+/** Accepted (acknowledged) findings for a story, rendered under it as labelled
+ *  "Compliance Recommendation" lines. */
+function storyRecommendations(story: UserStory, warnings: BrdWarning[]): Paragraph[] {
+  const accepted = warnings.filter(
+    (w) => w.status === 'acknowledged' && w.target_type === 'story' && w.target_story_id === story.id,
+  );
+  return accepted.map((w) => {
+    const label = WARNING_SOURCE_LABEL[w.source] ?? w.source;
+    return new Paragraph({
+      indent: { left: 720 },
+      children: [
+        new TextRun({ text: `Compliance Recommendation [${label}]: `, bold: true, italics: true }),
+        new TextRun({ text: w.recommendation || w.message }),
+      ],
+    });
+  });
+}
+
 function epicBlock(
   epic: Epic,
   stories: UserStory[],
   epicNumber: number,
   parentNumber: number,
+  warnings: BrdWarning[],
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [
     new Paragraph({
@@ -180,6 +199,9 @@ function epicBlock(
           );
         }
       }
+
+      // Accepted compliance recommendations for this story, under its criteria.
+      paragraphs.push(...storyRecommendations(story, warnings));
     }
   }
 
@@ -188,17 +210,15 @@ function epicBlock(
 }
 
 /**
- * Review-findings appendix for a given status (open / rejected). Acknowledged
- * findings are not listed here — their recommendation is applied to the relevant
- * acceptance criteria instead.
+ * Review-findings appendix for a pre-filtered list of findings (e.g. open or
+ * rejected). Accepted (acknowledged) story findings are not listed here — they
+ * are rendered under their user story as "Compliance Recommendation" instead.
  */
 function findingsBlock(
-  warnings: BrdWarning[],
-  status: BrdWarning['status'],
+  items: BrdWarning[],
   heading: string,
   intro: string,
 ): Paragraph[] {
-  const items = warnings.filter((w) => w.status === status);
   if (items.length === 0) return [];
 
   const paragraphs: Paragraph[] = [
@@ -272,11 +292,11 @@ export async function buildBrdDocxBlob({ brd, sections, epics, stories, warnings
     children.push(spacer());
   }
 
-  // Per-epic sub-sections (ordered).
+  // Per-epic sub-sections (ordered). Accepted findings render under their story.
   [...epics]
     .sort((a, b) => a.sort_order - b.sort_order)
     .forEach((epic, idx) => {
-      children.push(...epicBlock(epic, stories, idx + 1, epicsSectionNumber));
+      children.push(...epicBlock(epic, stories, idx + 1, epicsSectionNumber, warnings));
     });
 
   // Reports, then Notes (user-authored), if provided.
@@ -287,21 +307,27 @@ export async function buildBrdDocxBlob({ brd, sections, epics, stories, warnings
     children.push(...textBlock('Notes', brd.notes.trim()));
   }
 
-  // Review findings appendix — unresolved (open) then rejected. Acknowledged
-  // findings aren't listed; their recommendation is already in the criteria.
+  // Review findings appendix. Accepted (acknowledged) story findings render
+  // under their user story; accepted findings not tied to a story (section /
+  // BRD-level) are collected here so they aren't lost. Then open, then rejected.
   children.push(
     ...findingsBlock(
-      warnings,
-      'open',
-      'Open Review Findings',
-      'The following review findings are unresolved (neither acknowledged nor rejected).',
+      warnings.filter((w) => w.status === 'acknowledged' && w.target_type !== 'story'),
+      'Accepted Compliance Recommendations',
+      'The following recommendations were accepted (not tied to a specific user story).',
     ),
   );
   children.push(
     ...findingsBlock(
-      warnings,
-      'rejected',
-      'Rejected Review Findings',
+      warnings.filter((w) => w.status === 'open'),
+      'Open Findings',
+      'The following review findings are unresolved (neither accepted nor rejected).',
+    ),
+  );
+  children.push(
+    ...findingsBlock(
+      warnings.filter((w) => w.status === 'rejected'),
+      'Rejected Findings',
       'The following review findings were considered and rejected (not applied to the BRD).',
     ),
   );

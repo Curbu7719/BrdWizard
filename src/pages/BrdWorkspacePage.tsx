@@ -17,21 +17,6 @@ import { toast } from '../hooks/useToast';
 import type { ContextWarningLevel } from '../hooks/useChat';
 import type { ClassificationData } from '../components/wizard/ClassificationForm';
 
-/**
- * Append a finding's recommendation as a new acceptance-criterion bullet to a
- * user story's full_text. Adds an "Acceptance Criteria:" header if absent, and
- * skips if the recommendation text is already present (avoid duplicates).
- */
-function appendRecommendationToCriteria(fullText: string, recommendation: string): string {
-  const rec = recommendation.trim().replace(/^[-*]\s*/, '');
-  if (!rec) return fullText;
-  if (fullText.includes(rec)) return fullText;
-  const base = fullText.replace(/\s*$/, '');
-  return /acceptance criteria:/i.test(fullText)
-    ? `${base}\n- ${rec}`
-    : `${base}\nAcceptance Criteria:\n- ${rec}`;
-}
-
 export default function BrdWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -402,24 +387,11 @@ export default function BrdWorkspacePage() {
     void loadSections();
   }
 
-  // Acknowledging a story finding also APPLIES its recommendation: the
-  // recommendation text is appended to that story's acceptance criteria (the
-  // recommendations are phrased as criteria to add, and acknowledging implies
-  // accepting them). Section/BRD-level findings are just marked acknowledged.
+  // Acknowledging a finding accepts its recommendation. The story text is left
+  // unchanged; the accepted recommendation is rendered under the relevant user
+  // story as a "Compliance Recommendation" in the exported BRD (see exportDocx).
   async function handleAcknowledgeWarning(id: string) {
-    const w = warnings.find(x => x.id === id);
-    if (
-      w && w.status === 'open' &&
-      w.target_type === 'story' && w.target_story_id && w.recommendation
-    ) {
-      const story = stories.find(s => s.id === w.target_story_id);
-      if (story) {
-        const updated = appendRecommendationToCriteria(story.full_text, w.recommendation);
-        if (updated !== story.full_text) await saveEditedStory(story.id, updated);
-      }
-    }
     await acknowledgeWarning(id);
-    void loadSections();
   }
 
   // Rejecting a finding records it as 'rejected'; it is listed in the BRD's
