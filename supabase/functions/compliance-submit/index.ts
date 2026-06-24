@@ -1,23 +1,28 @@
 /**
- * /compliance-submit — submit a BRD for compliance review via the Batch API.
+ * /compliance-submit — synchronous compliance review of a BRD.
  *
- * Creates ONE message batch with THREE requests, one per lens (KVKK, Data
- * Privacy, Regulation). Each request reviews the whole BRD from its lens and
- * returns warnings keyed to section_key / story_id. The batch runs async; the
- * client then polls /review-status to fetch results.
+ * Runs THREE lens reviews (KVKK, Data Privacy, Regulation) in PARALLEL as normal
+ * (non-batch) LLM calls, parses each into warnings keyed to section_key / story_id,
+ * inserts them, and advances review_stage straight to 'compliance_done'. The client
+ * then chains into /maturity-check.
+ *
+ * Previously this used the Anthropic Batch API (async, polled via /review-status),
+ * which for a single 3-request review sat queued for minutes-to-hours and read as
+ * "never completes". Three parallel synchronous calls finish in seconds.
  *
  * Method: POST   Auth: required (owner)   Body: { brd_id }
- * Returns: { review_stage, compliance_batch_id }
+ * Returns: { review_stage, inserted }
  */
 
-import Anthropic from 'npm:@anthropic-ai/sdk';
 import { corsPreflightResponse, withCors } from '../_shared/cors.ts';
 import { verifyAuth, getServiceClient } from '../_shared/supabase-client.ts';
+import { createLLMProvider } from '../_shared/llm/index.ts';
 import { getPrompts, getSettings } from '../_shared/settings.ts';
 import {
   loadReviewContent,
   buildReviewText,
   outputFormatInstructions,
+  parseWarnings,
 } from '../_shared/brd-review.ts';
 
 function json(body: unknown, status = 200): Response {
@@ -28,9 +33,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 const LENSES = [
-  { custom_id: 'kvkk', promptKey: 'compliance_kvkk' as const },
-  { custom_id: 'data_privacy', promptKey: 'compliance_data_privacy' as const },
-  { custom_id: 'regulation', promptKey: 'compliance_regulation' as const },
+  { source: 'kvkk', promptKey: 'compliance_kvkk' as const },
+  { source: 'data_privacy', promptKey: 'compliance_data_privacy' as const },
+  { source: 'regulation', promptKey: 'compliance_regulation' as const },
 ];
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -68,50 +73,87 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const settings = await getSettings(db);
 
   const reviewText = buildReviewText(brd, sections, epics, stories);
-  const sectionKeys = sections.map((s) => s.section_key);
-  const storyIds = stories.map((s) => s.id);
-  const formatBlock = outputFormatInstructions(sectionKeys, storyIds);
+  const validSectionKeys = new Set(sections.map((s) => s.section_key));
+  const validStoryIds = new Set(stories.map((s) => s.id));
+  const formatBlock = outputFormatInstructions(
+    sections.map((s) => s.section_key),
+    stories.map((s) => s.id),
+  );
   const userContent = `${reviewText}\n${formatBlock}`;
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) return json({ error: 'LLM not configured' }, 500);
-  const client = new Anthropic({ apiKey });
+  // Mark running so a mid-flight reload knows a review is in progress.
+  await db
+    .from('brd_documents')
+    .update({
+      review_stage: 'compliance_running',
+      compliance_batch_id: null,
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', brdId);
 
-  // Build one batch with three lens requests.
-  let batch;
-  try {
-    batch = await client.messages.batches.create({
-      requests: LENSES.map((lens) => ({
-        custom_id: lens.custom_id,
-        params: {
-          model: settings.ai_model_id,
-          max_tokens: 8000,
-          system: prompts[lens.promptKey],
-          messages: [{ role: 'user', content: userContent }],
-        },
-      })),
-    });
-  } catch (err) {
-    console.error('[compliance-submit] batch create failed:', err);
-    return json({ error: 'Failed to submit compliance batch' }, 502);
+  const llm = createLLMProvider(settings.ai_model_id);
+
+  // Run the three lenses in parallel; one lens failing must not sink the others.
+  const results = await Promise.allSettled(
+    LENSES.map((lens) =>
+      llm.complete(
+        [{ role: 'user', content: userContent }],
+        { systemPrompt: prompts[lens.promptKey], maxTokens: 8000, temperature: 0 },
+      ),
+    ),
+  );
+
+  const rows: Array<Record<string, unknown>> = [];
+  let failed = 0;
+  results.forEach((res, i) => {
+    const lens = LENSES[i];
+    if (res.status !== 'fulfilled') {
+      failed++;
+      console.error(`[compliance-submit] lens ${lens.source} failed:`, res.reason);
+      return;
+    }
+    const warnings = parseWarnings(res.value.text, validSectionKeys, validStoryIds);
+    for (const w of warnings) {
+      rows.push({
+        brd_id: brdId,
+        source: lens.source,
+        severity: w.severity,
+        target_type: w.target_type,
+        target_section_key: w.target_section_key,
+        target_story_id: w.target_story_id,
+        message: w.message,
+        recommendation: w.recommendation,
+        status: 'open',
+      });
+    }
+  });
+
+  // Every lens failed — roll back so the user can retry, surface the error.
+  if (failed === LENSES.length) {
+    await db
+      .from('brd_documents')
+      .update({ review_stage: 'none', updated_at: new Date().toISOString() })
+      .eq('id', brdId);
+    return json({ error: 'Compliance review failed' }, 502);
   }
 
-  // Clear any previous compliance warnings — this is a fresh run.
+  // Fresh run — clear previous compliance warnings before inserting new ones.
   await db
     .from('brd_warnings')
     .delete()
     .eq('brd_id', brdId)
     .in('source', ['kvkk', 'data_privacy', 'regulation']);
 
+  if (rows.length > 0) {
+    const { error: insErr } = await db.from('brd_warnings').insert(rows);
+    if (insErr) console.error('[compliance-submit] insert warnings failed:', insErr);
+  }
+
   await db
     .from('brd_documents')
-    .update({
-      review_stage: 'compliance_running',
-      compliance_batch_id: batch.id,
-      submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .update({ review_stage: 'compliance_done', updated_at: new Date().toISOString() })
     .eq('id', brdId);
 
-  return json({ review_stage: 'compliance_running', compliance_batch_id: batch.id });
+  return json({ review_stage: 'compliance_done', inserted: rows.length });
 });

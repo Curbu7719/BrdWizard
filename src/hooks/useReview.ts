@@ -5,16 +5,19 @@ import type { BrdWarning, ReviewStage } from '../types/brd';
 
 /**
  * Drives the post-authoring review pipeline for one BRD:
- *   submit → compliance (Batch API, polled) → maturity (synchronous) → done.
- * Also loads the resulting warnings and lets the user acknowledge them.
+ *   submit → compliance (3 lenses, synchronous + parallel) → maturity → done.
+ * Both compliance and maturity now run as synchronous edge calls (no Batch API,
+ * no polling). Also loads the resulting warnings and lets the user acknowledge
+ * or reject them.
  */
 export function useReview(brdId: string, initialStage: ReviewStage) {
   const [warnings, setWarnings] = useState<BrdWarning[]>([]);
   const [stage, setStage] = useState<ReviewStage>(initialStage);
   const [busy, setBusy] = useState(false);
-  const timerRef = useRef<number | null>(null);
   // Guards the maturity auto-resume so it fires at most once per mount.
   const maturityResumedRef = useRef(false);
+  // Guards the compliance auto-resume so it fires at most once per mount.
+  const complianceResumedRef = useRef(false);
 
   const loadWarnings = useCallback(async () => {
     const { data } = await supabase
@@ -40,31 +43,35 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
     await loadWarnings();
   }, [brdId, loadWarnings]);
 
-  // Poll the compliance batch while it is running; chain into maturity when done.
-  useEffect(() => {
-    if (stage !== 'compliance_running') return;
-    let cancelled = false;
-
-    async function tick() {
-      const { data } = await callEdgeFunction<{ review_stage: ReviewStage }>(
-        'review-status',
-        { brd_id: brdId },
-      );
-      if (cancelled) return;
-      if (data?.review_stage === 'compliance_done') {
-        await loadWarnings();
-        await runMaturity();
-        return;
-      }
-      timerRef.current = window.setTimeout(tick, 8000);
+  // Run the synchronous compliance review (3 lenses in parallel server-side),
+  // then chain into maturity. Surfaces an error without advancing on failure.
+  const runCompliance = useCallback(async () => {
+    setStage('compliance_running');
+    const { data, error } = await callEdgeFunction<{ review_stage: ReviewStage }>(
+      'compliance-submit',
+      { brd_id: brdId },
+    );
+    if (error || data?.review_stage !== 'compliance_done') {
+      // compliance-submit rolled the stage back to 'none' on total failure.
+      setStage('none');
+      return { error: error ?? 'Compliance review failed' };
     }
+    setStage('compliance_done');
+    await loadWarnings();
+    await runMaturity();
+    return { error: null };
+  }, [brdId, loadWarnings, runMaturity]);
 
-    timerRef.current = window.setTimeout(tick, 4000);
-    return () => {
-      cancelled = true;
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [stage, brdId, loadWarnings, runMaturity]);
+  // Resume a compliance step left mid-flight. Compliance runs as a single
+  // synchronous edge call now; if the user navigated away while it was running,
+  // the BRD is left at 'compliance_running' with no one to finish it. Re-run it
+  // once on load — compliance-submit clears and re-inserts, so it is idempotent.
+  useEffect(() => {
+    if (initialStage === 'compliance_running' && !complianceResumedRef.current) {
+      complianceResumedRef.current = true;
+      void runCompliance();
+    }
+  }, [initialStage, runCompliance]);
 
   // Resume a stuck maturity step. Maturity runs as a single synchronous edge
   // call (no polling), so if the user navigated away while it was mid-flight the
@@ -80,18 +87,12 @@ export function useReview(brdId: string, initialStage: ReviewStage) {
 
   const submitForReview = useCallback(async () => {
     setBusy(true);
-    const { data, error } = await callEdgeFunction<{ review_stage: ReviewStage }>(
-      'compliance-submit',
-      { brd_id: brdId },
-    );
+    // Fresh run — drop any previously-loaded warnings from the UI.
+    setWarnings([]);
+    const { error } = await runCompliance();
     setBusy(false);
-    if (!error && data?.review_stage) {
-      setStage(data.review_stage);
-      // Fresh run — drop any previously-loaded warnings from the UI.
-      setWarnings([]);
-    }
     return { error };
-  }, [brdId]);
+  }, [runCompliance]);
 
   const acknowledge = useCallback(async (id: string) => {
     await supabase.from('brd_warnings').update({ status: 'acknowledged' }).eq('id', id);
