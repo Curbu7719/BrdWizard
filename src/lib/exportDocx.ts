@@ -117,22 +117,52 @@ function sectionBlock(section: BrdSection, number: number): Paragraph[] {
   return paragraphs;
 }
 
-/** Accepted (acknowledged) findings for a story, rendered under it as labelled
- *  "Compliance Recommendation" lines. */
-function storyRecommendations(story: UserStory, warnings: BrdWarning[]): Paragraph[] {
-  const accepted = warnings.filter(
-    (w) => w.status === 'acknowledged' && w.target_type === 'story' && w.target_story_id === story.id,
+const FINDING_STATUS_LABEL: Record<BrdWarning['status'], string> = {
+  acknowledged: 'Compliance Recommendation',
+  open: 'Open Finding',
+  rejected: 'Rejected Finding',
+};
+
+/** All findings targeting a story, rendered under it (grouped accepted → open →
+ *  rejected) so the document reads in context. Accepted findings show the
+ *  accepted recommendation; open/rejected show the issue plus any recommendation. */
+function storyFindings(story: UserStory, warnings: BrdWarning[]): Paragraph[] {
+  const items = warnings.filter(
+    (w) => w.target_type === 'story' && w.target_story_id === story.id,
   );
-  return accepted.map((w) => {
-    const label = WARNING_SOURCE_LABEL[w.source] ?? w.source;
-    return new Paragraph({
-      indent: { left: 720 },
-      children: [
-        new TextRun({ text: `Compliance Recommendation [${label}]: `, bold: true, italics: true }),
-        new TextRun({ text: w.recommendation || w.message }),
-      ],
-    });
-  });
+  if (items.length === 0) return [];
+
+  const order: BrdWarning['status'][] = ['acknowledged', 'open', 'rejected'];
+  const sorted = [...items].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+
+  const paragraphs: Paragraph[] = [];
+  for (const w of sorted) {
+    const source = WARNING_SOURCE_LABEL[w.source] ?? w.source;
+    const statusLabel = FINDING_STATUS_LABEL[w.status] ?? w.status;
+    const primary = w.status === 'acknowledged' ? (w.recommendation || w.message) : w.message;
+    paragraphs.push(
+      new Paragraph({
+        indent: { left: 720 },
+        children: [
+          new TextRun({ text: `${statusLabel} [${source}]: `, bold: true, italics: true }),
+          new TextRun({ text: primary }),
+        ],
+      }),
+    );
+    // For open/rejected, include the recommendation as a sub-line if present.
+    if (w.status !== 'acknowledged' && w.recommendation) {
+      paragraphs.push(
+        new Paragraph({
+          indent: { left: 1080 },
+          children: [
+            new TextRun({ text: 'Recommendation: ', italics: true }),
+            new TextRun({ text: w.recommendation }),
+          ],
+        }),
+      );
+    }
+  }
+  return paragraphs;
 }
 
 function epicBlock(
@@ -200,8 +230,8 @@ function epicBlock(
         }
       }
 
-      // Accepted compliance recommendations for this story, under its criteria.
-      paragraphs.push(...storyRecommendations(story, warnings));
+      // All findings for this story (accepted / open / rejected), under its criteria.
+      paragraphs.push(...storyFindings(story, warnings));
     }
   }
 
@@ -307,26 +337,28 @@ export async function buildBrdDocxBlob({ brd, sections, epics, stories, warnings
     children.push(...textBlock('Notes', brd.notes.trim()));
   }
 
-  // Review findings appendix. Accepted (acknowledged) story findings render
-  // under their user story; accepted findings not tied to a story (section /
-  // BRD-level) are collected here so they aren't lost. Then open, then rejected.
+  // Review findings appendix — only findings NOT tied to a user story (section /
+  // BRD-level); story findings already appear under their story above. Split by
+  // status: accepted, then open, then rejected.
+  const nonStory = (status: BrdWarning['status']) =>
+    warnings.filter((w) => w.status === status && w.target_type !== 'story');
   children.push(
     ...findingsBlock(
-      warnings.filter((w) => w.status === 'acknowledged' && w.target_type !== 'story'),
+      nonStory('acknowledged'),
       'Accepted Compliance Recommendations',
       'The following recommendations were accepted (not tied to a specific user story).',
     ),
   );
   children.push(
     ...findingsBlock(
-      warnings.filter((w) => w.status === 'open'),
+      nonStory('open'),
       'Open Findings',
       'The following review findings are unresolved (neither accepted nor rejected).',
     ),
   );
   children.push(
     ...findingsBlock(
-      warnings.filter((w) => w.status === 'rejected'),
+      nonStory('rejected'),
       'Rejected Findings',
       'The following review findings were considered and rejected (not applied to the BRD).',
     ),
